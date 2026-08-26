@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local SQLite database
+backend-ordina/data/
+
 # Environment variables
 .env
 .env.local
