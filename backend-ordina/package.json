@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "db:setup": "node scripts/setup-db.js",
+    "db:setup": "node node_modules/prisma/build/index.js migrate deploy",
+    "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:test": "node scripts/test-db.js",
+    "db:test:prisma": "node scripts/test-prisma.js",
     "test": "npm run db:test"
   },
   "keywords": [],
@@ -13,6 +15,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",
@@ -28,5 +32,8 @@
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "prisma": "^7.10.0"
   }
 }

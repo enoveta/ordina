@@ -1,6 +1,6 @@
 # ORDINA Database
 
-The backend uses SQLite through `better-sqlite3`. The default database file is `data/ordina.sqlite`; set `DATABASE_PATH` to override it for local tooling or tests.
+The backend uses SQLite through Prisma's libSQL adapter (with `better-sqlite3` retained for existing low-level database tooling). The default database file is `data/ordina.sqlite`, configured by `DATABASE_URL` in `.env`.
 
 ## Entity relationship
 
@@ -33,12 +33,13 @@ npm install
 npm run db:setup
 ```
 
-Initialization is idempotent and runs `schema.sql` with `CREATE TABLE/INDEX IF NOT EXISTS` statements.
+The Prisma schema is in `prisma/schema.prisma`; migrations are in `prisma/migrations`. Apply committed migrations with `npm run db:setup` and generate the client with `npm run db:generate`. The legacy `schema.sql` and `npm run db:test` smoke test remain available for the existing low-level database helper.
 
 ## Verification
 
 ```bash
 npm test
+npm run db:test:prisma
 ```
 
-The test uses a temporary database, exercises create/read/update/delete behavior for users, categories, and tasks, verifies the many-to-many relationship, checks foreign-key rejection, and confirms user deletion cascades through related records.
+The tests exercise create/read/update/delete behavior for users, categories, and tasks, verify the many-to-many relationship, check foreign-key rejection, and confirm user deletion cascades through related records. For a fresh migration during development, use `npx prisma migrate dev --name <name>`.
