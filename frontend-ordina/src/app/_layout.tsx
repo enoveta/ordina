@@ -1,18 +1,64 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  useFonts,
+} from '@expo-google-fonts/poppins';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider, Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ThemeProvider, useAppTheme } from '@/providers/theme-provider';
+import { useAuthStore } from '@/store/auth-store';
 
-SplashScreen.preventAutoHideAsync();
+function RootStack() {
+  const { scheme, colors } = useAppTheme();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <NavigationThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'fade',
+        }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="ai" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="new-task" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="schedule-created" />
+        <Stack.Screen name="project/[id]" />
+      </Stack>
+    </NavigationThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  return (
+    <ThemeProvider>
+      <RootStack />
     </ThemeProvider>
   );
 }
