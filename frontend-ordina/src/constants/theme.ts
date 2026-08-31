@@ -22,16 +22,16 @@ export const Colors = {
   light: {
     text: '#0F172A',
     textSecondary: '#64748B',
-    background: '#F8FAFC',
+    background: '#F6F4FF',
     backgroundElement: '#FFFFFF',
     backgroundSelected: '#EDE9FE',
     card: '#FFFFFF',
-    input: '#F1F5F9',
+    input: '#F3F0FF',
     border: '#E2E8F0',
     primary: '#8B5CF6',
     secondary: '#A78BFA',
     aiAccent: '#8B5CF6',
-    onPrimary: '#000000',
+    onPrimary: '#FFFFFF',
     success: '#22C55E',
     warning: '#F59E0B',
     danger: '#EF4444',
@@ -50,7 +50,7 @@ export const Colors = {
     primary: '#8B5CF6',
     secondary: '#A78BFA',
     aiAccent: '#8B5CF6',
-    onPrimary: '#000000',
+    onPrimary: '#FFFFFF',
     success: '#22C55E',
     warning: '#F59E0B',
     danger: '#EF4444',
@@ -104,4 +104,4 @@ export const Radii = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
-export const THEME_PREFERENCE_KEY = 'ordina.themePreference';
+export const THEME_PREFERENCE_KEY = 'ordina.themePreference.v2';

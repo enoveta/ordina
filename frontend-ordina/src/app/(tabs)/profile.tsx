@@ -113,12 +113,14 @@ export default function ProfileScreen() {
         {/* User card */}
         <View style={[styles.userCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-            <ThemedText style={styles.avatarText}>S</ThemedText>
+            <ThemedText style={styles.avatarText}>
+              {user?.name?.slice(0, 1).toUpperCase() ?? 'O'}
+            </ThemedText>
           </View>
           <View style={{ flex: 1 }}>
-            <ThemedText style={styles.userName}>{user?.name ?? 'Sarah Mitchell'}</ThemedText>
+            <ThemedText style={styles.userName}>{user?.name ?? 'ORDINA user'}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.userEmail}>
-              {user?.email ?? 'sarah.m@ordina-ai.com'}
+              {user?.email ?? 'Sign in to sync your data'}
             </ThemedText>
             <Pressable>
               <ThemedText style={[styles.editProfile, { color: theme.primary }]}>

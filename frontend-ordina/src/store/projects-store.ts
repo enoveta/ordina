@@ -1,9 +1,6 @@
-/**
- * ORDINA Projects Store
- * Zustand store with seed projects matching the UI mockups.
- */
-
 import { create } from 'zustand';
+
+import { createProjectApi, fetchProjects } from '@/services/api';
 
 export type ProjectStatus = 'active' | 'completed' | 'on_hold';
 
@@ -12,7 +9,7 @@ export interface Project {
   name: string;
   subtitle?: string;
   status: ProjectStatus;
-  progress: number; // 0–100
+  progress: number;
   color: string;
   tasksTotal: number;
   tasksCompleted: number;
@@ -22,89 +19,43 @@ export interface Project {
   updatedAt: string;
 }
 
-interface ProjectsState {
-  projects: Project[];
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
+function mapProject(raw: Record<string, unknown>): Project {
+  return {
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+    subtitle: raw.subtitle ? String(raw.subtitle) : undefined,
+    status: 'active',
+    progress: Number(raw.progress ?? 0),
+    color: String(raw.color ?? '#8B5CF6'),
+    tasksTotal: Number(raw.tasksTotal ?? 0),
+    tasksCompleted: Number(raw.tasksCompleted ?? 0),
+    tasksOverdue: Number(raw.tasksOverdue ?? 0),
+    dueDate: raw.dueDate ? String(raw.dueDate).slice(0, 10) : undefined,
+    createdAt: String(raw.createdAt ?? new Date().toISOString()),
+    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
+  };
 }
 
-const today = new Date().toISOString().split('T')[0];
-
-const SEED_PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    name: 'React Dashboard Rebuild',
-    subtitle: 'Engineering Team • Q3 Goals',
-    status: 'active',
-    progress: 65,
-    color: '#5C4DF2',
-    tasksTotal: 8,
-    tasksCompleted: 3,
-    tasksOverdue: 2,
-    dueDate: '2026-09-15',
-    createdAt: today,
-    updatedAt: today,
-  },
-  {
-    id: 'p2',
-    name: 'PostgreSQL Migration',
-    subtitle: 'Database Team • Q3 Goals',
-    status: 'active',
-    progress: 40,
-    color: '#22C55E',
-    tasksTotal: 5,
-    tasksCompleted: 2,
-    tasksOverdue: 0,
-    dueDate: '2026-09-30',
-    createdAt: today,
-    updatedAt: today,
-  },
-  {
-    id: 'p3',
-    name: 'Design System Update',
-    subtitle: 'Design Team • Q3 Goals',
-    status: 'active',
-    progress: 80,
-    color: '#F59E0B',
-    tasksTotal: 6,
-    tasksCompleted: 5,
-    tasksOverdue: 0,
-    dueDate: '2026-09-10',
-    createdAt: today,
-    updatedAt: today,
-  },
-];
-
-function generateId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+interface ProjectsState {
+  projects: Project[];
+  load: () => Promise<void>;
+  addProject: (project: { name: string; subtitle?: string; color?: string }) => Promise<void>;
 }
 
 export const useProjectsStore = create<ProjectsState>((set) => ({
-  projects: SEED_PROJECTS,
+  projects: [],
 
-  addProject: (projectData) =>
-    set((state) => ({
-      projects: [
-        ...state.projects,
-        {
-          ...projectData,
-          id: generateId(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-    })),
+  load: async () => {
+    try {
+      const projects = await fetchProjects();
+      set({ projects: (projects as Record<string, unknown>[]).map(mapProject) });
+    } catch {
+      set({ projects: [] });
+    }
+  },
 
-  updateProject: (id, updates) =>
-    set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
-      ),
-    })),
-
-  deleteProject: (id) =>
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== id),
-    })),
+  addProject: async (projectData) => {
+    const project = await createProjectApi(projectData);
+    set((state) => ({ projects: [mapProject(project), ...state.projects] }));
+  },
 }));

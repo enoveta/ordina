@@ -4,6 +4,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,7 +15,11 @@ import { href } from '@/utils/href';
 
 export default function ProjectsScreen() {
   const theme = useTheme();
-  const { projects } = useProjectsStore();
+  const { projects, load } = useProjectsStore();
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>

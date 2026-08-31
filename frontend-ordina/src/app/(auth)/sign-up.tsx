@@ -5,16 +5,19 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { AuthField } from '@/components/auth-field';
 import { BrandLockup } from '@/components/brand-lockup';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { apiMessage } from '@/services/api';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function SignUpScreen() {
   const theme = useTheme();
   const signUp = useAuthStore((s) => s.signUp);
+  const setDraft = useAuthStore((s) => s.setDraft);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,12 +28,21 @@ export default function SignUpScreen() {
       Alert.alert('Create Account', 'Fill in name, email, and password.');
       return;
     }
+    if (password.length < 8) {
+      Alert.alert('Create Account', 'Password must be at least 8 characters.');
+      return;
+    }
     if (password !== confirm) {
       Alert.alert('Create Account', 'Passwords do not match.');
       return;
     }
-    await signUp({ name: name.trim(), email: email.trim() });
-    router.replace(href('/(tabs)'));
+    try {
+      setDraft({ name: name.trim() });
+      await signUp(email.trim(), password);
+      router.replace(href('/(tabs)'));
+    } catch (error) {
+      Alert.alert('Create Account', apiMessage(error));
+    }
   }
 
   return (
@@ -40,6 +52,9 @@ export default function SignUpScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <BackButton fallback="/sign-in" />
+          </View>
           <BrandLockup markSize={88} wordmarkSize="sm" />
 
           <View style={styles.heading}>

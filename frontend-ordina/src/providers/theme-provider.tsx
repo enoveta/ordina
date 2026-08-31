@@ -53,7 +53,7 @@ function resolveScheme(preference: ThemePreference, system: string | null | unde
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useSystemColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
+  const [preference, setPreferenceState] = useState<ThemePreference>('light');
 
   useEffect(() => {
     readPreference().then((stored) => {
@@ -84,9 +84,9 @@ export function useAppTheme() {
   if (!context) {
     const system = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
     return {
-      preference: 'dark' as ThemePreference,
-      scheme: system === 'dark' ? 'dark' : 'light',
-      colors: Colors.dark,
+      preference: 'light' as ThemePreference,
+      scheme: 'light' as ColorSchemeName,
+      colors: Colors.light,
       setPreference: () => {},
     };
   }

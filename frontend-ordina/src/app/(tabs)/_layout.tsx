@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -16,9 +17,8 @@ export default function TabsLayout() {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 64,
-          paddingTop: 8,
-          paddingBottom: 8,
+          height: 72,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontFamily: 'Poppins_500Medium',
@@ -44,20 +44,22 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="ai"
         options={{
-          title: 'Calendar',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
+          title: '',
+          tabBarIcon: () => (
+            <View style={[styles.aiBtn, { backgroundColor: colors.primary }]}>
+              <Ionicons name="sparkles" size={22} color="#FFFFFF" />
+            </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="projects"
+        name="calendar"
         options={{
-          title: 'Projects',
+          title: 'Schedule',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -70,6 +72,18 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="projects" options={{ href: null }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  aiBtn: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+});

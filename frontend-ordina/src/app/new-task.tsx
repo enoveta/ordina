@@ -1,13 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { apiMessage } from '@/services/api';
 import { useProjectsStore } from '@/store/projects-store';
 import { useTasksStore, type Category, type Priority } from '@/store/tasks-store';
 
@@ -16,31 +17,46 @@ const CATEGORIES: Category[] = ['work', 'personal', 'health', 'learning'];
 export default function NewTaskScreen() {
   const theme = useTheme();
   const addTask = useTasksStore((s) => s.addTask);
-  const projects = useProjectsStore((s) => s.projects);
-  const [title, setTitle] = useState('Design settings architecture');
-  const [description, setDescription] = useState(
-    'Create the settings pane layout wireframes, mapping preferences, notifications toggle arrays, and account management lists.'
-  );
+  const { projects, load: loadProjects } = useProjectsStore();
+  const today = new Date().toISOString().split('T')[0];
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [category, setCategory] = useState<Category>('work');
   const [reminder, setReminder] = useState(true);
-  const [projectId, setProjectId] = useState(projects[0]?.id);
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
 
-  function create() {
-    addTask({
-      title,
-      description,
-      status: 'todo',
-      priority,
-      category,
-      projectId,
-      dueDate: '2026-08-28',
-      startTime: '10:00',
-      duration: '1h 30m',
-      reminder,
-      completed: false,
-    });
-    router.back();
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  async function create() {
+    if (!title.trim()) {
+      Alert.alert('New Task', 'Add a title for this task.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addTask({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        status: 'todo',
+        priority,
+        category,
+        projectId: projectId && /^\d+$/.test(projectId) ? projectId : undefined,
+        dueDate: today,
+        startTime: '10:00',
+        duration: '1h 30m',
+        reminder,
+        completed: false,
+      });
+      router.back();
+    } catch (error) {
+      Alert.alert('New Task', apiMessage(error));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -58,6 +74,8 @@ export default function NewTaskScreen() {
         <TextInput
           value={title}
           onChangeText={setTitle}
+          placeholder="Task title"
+          placeholderTextColor={theme.textSecondary}
           style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
         />
         <ThemedText themeColor="textSecondary" style={styles.label}>
@@ -75,7 +93,7 @@ export default function NewTaskScreen() {
               DATE
             </ThemedText>
             <View style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
-              <ThemedText>Aug 28, 2026</ThemedText>
+              <ThemedText>{today}</ThemedText>
               <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
             </View>
           </View>
@@ -103,9 +121,15 @@ export default function NewTaskScreen() {
               PROJECT
             </ThemedText>
             <Pressable
-              onPress={() => setProjectId(projects[projectId === projects[0]?.id ? 1 : 0]?.id)}
+              onPress={() => {
+                if (!projects.length) return;
+                const current = projects.findIndex((p) => p.id === projectId);
+                setProjectId(projects[(current + 1) % projects.length]?.id);
+              }}
               style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
-              <ThemedText numberOfLines={1}>{projects.find((p) => p.id === projectId)?.name}</ThemedText>
+              <ThemedText numberOfLines={1}>
+                {projects.find((p) => p.id === projectId)?.name ?? 'None'}
+              </ThemedText>
               <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
             </Pressable>
           </View>
@@ -159,7 +183,7 @@ export default function NewTaskScreen() {
           <ThemedText style={{ flex: 1 }}>Reminder (15m before)</ThemedText>
           <Switch value={reminder} onValueChange={setReminder} trackColor={{ true: theme.primary }} />
         </View>
-        <PrimaryButton label="Create Task" onPress={create} />
+        <PrimaryButton label={saving ? 'Saving…' : 'Create Task'} disabled={saving} onPress={() => void create()} />
       </ScrollView>
     </SafeAreaView>
   );

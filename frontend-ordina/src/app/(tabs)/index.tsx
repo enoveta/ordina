@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -51,8 +52,12 @@ function firstName(name?: string | null) {
 export default function HomeScreen() {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const { tasks, toggleComplete } = useTasksStore();
+  const { tasks, toggleComplete, load } = useTasksStore();
   const today = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    void load();
+  }, [load]);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
   const todayTasks = tasks

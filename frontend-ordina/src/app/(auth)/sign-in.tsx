@@ -5,16 +5,20 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { AuthField } from '@/components/auth-field';
 import { BrandLockup } from '@/components/brand-lockup';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { apiMessage } from '@/services/api';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function SignInScreen() {
   const theme = useTheme();
   const signIn = useAuthStore((s) => s.signIn);
+  const signInGoogle = useAuthStore((s) => s.signInGoogle);
+  const signInApple = useAuthStore((s) => s.signInApple);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -23,11 +27,36 @@ export default function SignInScreen() {
       Alert.alert('Sign in', 'Enter your email and password.');
       return;
     }
-    await signIn({
-      name: email.split('@')[0] || 'Sarah',
-      email: email.trim(),
-    });
-    router.replace(href('/(tabs)'));
+    try {
+      await signIn(email.trim(), password);
+      router.replace(href('/(tabs)'));
+    } catch (error) {
+      Alert.alert('Sign in', apiMessage(error));
+    }
+  }
+
+  async function onGoogle() {
+    try {
+      await signInGoogle('');
+      router.replace(href('/(tabs)'));
+    } catch (error) {
+      Alert.alert(
+        'Continue with Google',
+        `${apiMessage(error)}\n\nThe /api/auth/google endpoint is live. Add GOOGLE_CLIENT_ID on the server and a Google ID token from the app to complete sign-in.`
+      );
+    }
+  }
+
+  async function onApple() {
+    try {
+      await signInApple('');
+      router.replace(href('/(tabs)'));
+    } catch (error) {
+      Alert.alert(
+        'Continue with Apple',
+        `${apiMessage(error)}\n\nThe /api/auth/apple endpoint is live. Add APPLE_CLIENT_ID on the server and an Apple identity token from the app to complete sign-in.`
+      );
+    }
   }
 
   return (
@@ -37,6 +66,9 @@ export default function SignInScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          <View style={styles.topRow}>
+            <BackButton fallback="/welcome" />
+          </View>
           <BrandLockup markSize={108} wordmarkSize="md" />
 
           <View style={styles.heading}>
@@ -80,17 +112,13 @@ export default function SignInScreen() {
           <View style={styles.socialRow}>
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() =>
-                Alert.alert('Google', 'Google sign-in will connect when account services are configured.')
-              }>
+              onPress={() => void onGoogle()}>
               <Ionicons name="logo-google" size={18} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Google</ThemedText>
             </Pressable>
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() =>
-                Alert.alert('Apple', 'Apple sign-in will connect when account services are configured.')
-              }>
+              onPress={() => void onApple()}>
               <Ionicons name="logo-apple" size={20} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Apple</ThemedText>
             </Pressable>
@@ -117,6 +145,7 @@ const styles = StyleSheet.create({
     gap: 14,
     flexGrow: 1,
   },
+  topRow: { alignSelf: 'flex-start' },
   heading: { gap: 4, marginTop: 12, marginBottom: 4 },
   title: { fontSize: 28, fontFamily: 'Poppins_700Bold' },
   subtitle: { fontSize: 14 },

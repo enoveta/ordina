@@ -6,14 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/images/ordina-logo.png",
     "scheme": "ordina",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/ordina-logo.png",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#000000",
+        "backgroundColor": "#F6F4FF",
         "foregroundImage": "./assets/images/ordina-logo.png"
       },
       "predictiveBackGestureEnabled": false
@@ -27,7 +27,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#000000",
+          "backgroundColor": "#F6F4FF",
           "image": "./assets/images/ordina-logo.png",
           "imageWidth": 200
         }

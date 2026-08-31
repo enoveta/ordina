@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '@/components/back-button';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -12,6 +13,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
+        <BackButton fallback="/(tabs)" />
         <ThemedText style={styles.title}>Notifications</ThemedText>
         <View style={styles.headerRight}>
           <ThemedText style={{ color: theme.primary }}>Mark all read</ThemedText>
@@ -96,8 +98,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    gap: 10,
   },
-  title: { fontSize: 28, fontFamily: 'Poppins_700Bold' },
+  title: { flex: 1, fontSize: 22, fontFamily: 'Poppins_700Bold' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   group: { fontSize: 11, letterSpacing: 1.2, marginBottom: 10, marginTop: 8 },

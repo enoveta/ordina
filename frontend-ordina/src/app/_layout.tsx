@@ -25,10 +25,11 @@ function RootStack() {
           animation: 'fade',
         }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="profile-setup" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="ai" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="search" />
         <Stack.Screen name="new-task" options={{ animation: 'slide_from_bottom' }} />
