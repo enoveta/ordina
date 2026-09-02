@@ -30,6 +30,7 @@ export interface Task {
 
 interface TasksState {
   tasks: Task[];
+  getTaskById: (id: string) => Task | undefined;
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -318,8 +319,10 @@ function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export const useTasksStore = create<TasksState>((set) => ({
+export const useTasksStore = create<TasksState>((set, get) => ({
   tasks: SEED_TASKS,
+
+  getTaskById: (id) => get().tasks.find((task) => task.id === id),
 
   addTask: (taskData) =>
     set((state) => ({
@@ -350,7 +353,12 @@ export const useTasksStore = create<TasksState>((set) => ({
     set((state) => ({
       tasks: state.tasks.map((t) =>
         t.id === id
-          ? { ...t, completed: !t.completed, status: !t.completed ? 'completed' : 'in_progress', updatedAt: new Date().toISOString() }
+          ? {
+              ...t,
+              completed: !t.completed,
+              status: !t.completed ? 'completed' : 'in_progress',
+              updatedAt: new Date().toISOString(),
+            }
           : t
       ),
     })),

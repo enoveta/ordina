@@ -181,7 +181,7 @@ export default function CalendarScreen() {
                   return (
                     <Pressable
                       key={t.id}
-                      onPress={() => router.push(`/tasks/${t.id}` as any)}
+                      onPress={() => router.push({ pathname: '/new-task', params: { id: t.id } })}
                       style={[
                         styles.scheduleBlock,
                         { backgroundColor: color + 'DD', borderLeftColor: color },

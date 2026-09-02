@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,42 +11,84 @@ import { useTheme } from '@/hooks/use-theme';
 import { useProjectsStore } from '@/store/projects-store';
 import { useTasksStore, type Category, type Priority } from '@/store/tasks-store';
 
-const CATEGORIES: Category[] = ['work', 'personal', 'health', 'learning'];
+const CATEGORIES: Category[] = ['work', 'personal', 'health', 'learning', 'design', 'database'];
 
 export default function NewTaskScreen() {
   const theme = useTheme();
+  const params = useLocalSearchParams<{ id?: string }>();
   const addTask = useTasksStore((s) => s.addTask);
+  const updateTask = useTasksStore((s) => s.updateTask);
+  const deleteTask = useTasksStore((s) => s.deleteTask);
+  const tasks = useTasksStore((s) => s.tasks);
   const projects = useProjectsStore((s) => s.projects);
-  const [title, setTitle] = useState('Design settings architecture');
-  const [description, setDescription] = useState(
-    'Create the settings pane layout wireframes, mapping preferences, notifications toggle arrays, and account management lists.'
-  );
-  const [priority, setPriority] = useState<Priority>('medium');
-  const [category, setCategory] = useState<Category>('work');
-  const [reminder, setReminder] = useState(true);
-  const [projectId, setProjectId] = useState(projects[0]?.id);
 
-  function create() {
-    addTask({
+  const taskToEdit = useMemo(
+    () => tasks.find((task) => task.id === params.id),
+    [tasks, params.id]
+  );
+
+  const [title, setTitle] = useState(taskToEdit?.title ?? 'Design settings architecture');
+  const [description, setDescription] = useState(
+    taskToEdit?.description ??
+      'Create the settings pane layout wireframes, mapping preferences, notifications toggle arrays, and account management lists.'
+  );
+  const [priority, setPriority] = useState<Priority>(taskToEdit?.priority ?? 'medium');
+  const [category, setCategory] = useState<Category>(taskToEdit?.category ?? 'work');
+  const [reminder, setReminder] = useState(taskToEdit?.reminder ?? true);
+  const [projectId, setProjectId] = useState(taskToEdit?.projectId ?? projects[0]?.id);
+  const [dueDate, setDueDate] = useState(taskToEdit?.dueDate ?? '2026-08-28');
+  const [startTime, setStartTime] = useState(taskToEdit?.startTime ?? '10:00');
+  const [duration, setDuration] = useState(taskToEdit?.duration ?? '1h 30m');
+
+  useEffect(() => {
+    if (!taskToEdit) return;
+    setTitle(taskToEdit.title);
+    setDescription(taskToEdit.description ?? '');
+    setPriority(taskToEdit.priority);
+    setCategory(taskToEdit.category);
+    setReminder(taskToEdit.reminder ?? false);
+    setProjectId(taskToEdit.projectId ?? projects[0]?.id);
+    setDueDate(taskToEdit.dueDate ?? '2026-08-28');
+    setStartTime(taskToEdit.startTime ?? '10:00');
+    setDuration(taskToEdit.duration ?? '1h 30m');
+  }, [taskToEdit, projects]);
+
+  const isEditMode = Boolean(taskToEdit);
+
+  function saveTask() {
+    const basePayload = {
       title,
       description,
-      status: 'todo',
+      status: taskToEdit?.status ?? 'todo',
       priority,
       category,
       projectId,
-      dueDate: '2026-08-28',
-      startTime: '10:00',
-      duration: '1h 30m',
+      dueDate,
+      startTime,
+      duration,
       reminder,
-      completed: false,
-    });
+      completed: taskToEdit?.completed ?? false,
+    };
+
+    if (taskToEdit) {
+      updateTask(taskToEdit.id, basePayload);
+    } else {
+      addTask(basePayload);
+    }
+
+    router.back();
+  }
+
+  function handleDelete() {
+    if (!taskToEdit) return;
+    deleteTask(taskToEdit.id);
     router.back();
   }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <ThemedText style={styles.title}>New Task</ThemedText>
+        <ThemedText style={styles.title}>{isEditMode ? 'Edit Task' : 'New Task'}</ThemedText>
         <Pressable onPress={() => router.back()} style={[styles.close, { backgroundColor: theme.card }]}>
           <Ionicons name="close" size={18} color={theme.text} />
         </Pressable>
@@ -60,6 +102,7 @@ export default function NewTaskScreen() {
           onChangeText={setTitle}
           style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
         />
+
         <ThemedText themeColor="textSecondary" style={styles.label}>
           DESCRIPTION
         </ThemedText>
@@ -69,47 +112,59 @@ export default function NewTaskScreen() {
           multiline
           style={[styles.area, { backgroundColor: theme.input, color: theme.text }]}
         />
+
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <ThemedText themeColor="textSecondary" style={styles.label}>
               DATE
             </ThemedText>
-            <View style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
-              <ThemedText>Aug 28, 2026</ThemedText>
-              <Ionicons name="calendar-outline" size={16} color={theme.textSecondary} />
-            </View>
+            <TextInput
+              value={dueDate}
+              onChangeText={setDueDate}
+              style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
+              placeholder="YYYY-MM-DD"
+            />
           </View>
           <View style={{ flex: 1 }}>
             <ThemedText themeColor="textSecondary" style={styles.label}>
               TIME
             </ThemedText>
-            <View style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
-              <ThemedText>10:00 AM</ThemedText>
-              <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
-            </View>
+            <TextInput
+              value={startTime}
+              onChangeText={setStartTime}
+              style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
+              placeholder="HH:MM"
+            />
           </View>
         </View>
+
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <ThemedText themeColor="textSecondary" style={styles.label}>
               DURATION
             </ThemedText>
-            <View style={[styles.input, { backgroundColor: theme.input }]}>
-              <ThemedText>1h 30m</ThemedText>
-            </View>
+            <TextInput
+              value={duration}
+              onChangeText={setDuration}
+              style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
+            />
           </View>
           <View style={{ flex: 1 }}>
             <ThemedText themeColor="textSecondary" style={styles.label}>
               PROJECT
             </ThemedText>
             <Pressable
-              onPress={() => setProjectId(projects[projectId === projects[0]?.id ? 1 : 0]?.id)}
+              onPress={() => {
+                const nextProject = projects.find((p) => p.id !== projectId) ?? projects[0];
+                setProjectId(nextProject?.id);
+              }}
               style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
-              <ThemedText numberOfLines={1}>{projects.find((p) => p.id === projectId)?.name}</ThemedText>
+              <ThemedText numberOfLines={1}>{projects.find((p) => p.id === projectId)?.name ?? 'No project'}</ThemedText>
               <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
             </Pressable>
           </View>
         </View>
+
         <ThemedText themeColor="textSecondary" style={styles.label}>
           PRIORITY
         </ThemedText>
@@ -135,6 +190,7 @@ export default function NewTaskScreen() {
             </Pressable>
           ))}
         </View>
+
         <ThemedText themeColor="textSecondary" style={styles.label}>
           CATEGORY
         </ThemedText>
@@ -154,12 +210,20 @@ export default function NewTaskScreen() {
             </Pressable>
           ))}
         </View>
+
         <View style={[styles.reminder, { backgroundColor: theme.card }]}>
           <Ionicons name="notifications-outline" size={18} color={theme.primary} />
           <ThemedText style={{ flex: 1 }}>Reminder (15m before)</ThemedText>
           <Switch value={reminder} onValueChange={setReminder} trackColor={{ true: theme.primary }} />
         </View>
-        <PrimaryButton label="Create Task" onPress={create} />
+
+        <PrimaryButton label={isEditMode ? 'Save Changes' : 'Create Task'} onPress={saveTask} />
+
+        {isEditMode && (
+          <Pressable onPress={handleDelete} style={[styles.deleteButton, { borderColor: theme.danger }]}>
+            <ThemedText style={{ color: theme.danger }}>Delete Task</ThemedText>
+          </Pressable>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -187,4 +251,12 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   reminder: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, marginVertical: 8 },
+  deleteButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

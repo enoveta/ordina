@@ -231,7 +231,7 @@ export default function TasksScreen() {
               <TaskRow
                 key={t.id}
                 task={t}
-                onPress={() => {}}
+                onPress={() => router.push({ pathname: '/new-task', params: { id: t.id } })}
                 onToggle={() => toggleComplete(t.id)}
               />
             ))}
@@ -245,7 +245,7 @@ export default function TasksScreen() {
               <TaskRow
                 key={t.id}
                 task={t}
-                onPress={() => {}}
+                onPress={() => router.push({ pathname: '/new-task', params: { id: t.id } })}
                 onToggle={() => toggleComplete(t.id)}
               />
             ))}
@@ -259,7 +259,7 @@ export default function TasksScreen() {
               <TaskRow
                 key={t.id}
                 task={t}
-                onPress={() => {}}
+                onPress={() => router.push({ pathname: '/new-task', params: { id: t.id } })}
                 onToggle={() => toggleComplete(t.id)}
               />
             ))}
