@@ -34,6 +34,9 @@ function RootStack() {
         <Stack.Screen name="new-task" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="schedule-created" />
         <Stack.Screen name="project/[id]" />
+        <Stack.Screen name="new-project" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="goals" />
+        <Stack.Screen name="reminders" />
       </Stack>
     </NavigationThemeProvider>
   );

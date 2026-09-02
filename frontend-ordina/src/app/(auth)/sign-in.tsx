@@ -23,11 +23,16 @@ export default function SignInScreen() {
       Alert.alert('Sign in', 'Enter your email and password.');
       return;
     }
-    await signIn({
-      name: email.split('@')[0] || 'Sarah',
-      email: email.trim(),
-    });
-    router.replace(href('/(tabs)'));
+
+    try {
+      await signIn({
+        email: email.trim(),
+        password,
+      });
+      router.replace(href('/(tabs)'));
+    } catch (error: any) {
+      Alert.alert('Sign in failed', error?.response?.data?.message ?? 'Unable to reach the server. Check your network connection.');
+    }
   }
 
   return (
@@ -81,7 +86,7 @@ export default function SignInScreen() {
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() =>
-                Alert.alert('Google', 'Google sign-in will connect when account services are configured.')
+                Alert.alert('Google', 'Google sign-in is not configured yet. Please use email sign-in.')
               }>
               <Ionicons name="logo-google" size={18} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Google</ThemedText>
@@ -89,7 +94,7 @@ export default function SignInScreen() {
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() =>
-                Alert.alert('Apple', 'Apple sign-in will connect when account services are configured.')
+                Alert.alert('Apple', 'Apple sign-in is not configured yet. Please use email sign-in.')
               }>
               <Ionicons name="logo-apple" size={20} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Apple</ThemedText>

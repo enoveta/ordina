@@ -1,88 +1,31 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useProductivityStore } from '@/store/productivity-store';
 
 export default function NotificationsScreen() {
   const theme = useTheme();
+  const { notifications, loadNotifications, markAllNotificationsRead } = useProductivityStore();
+
+  useEffect(() => { void loadNotifications(); }, [loadNotifications]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
         <ThemedText style={styles.title}>Notifications</ThemedText>
         <View style={styles.headerRight}>
-          <ThemedText style={{ color: theme.primary }}>Mark all read</ThemedText>
+          <Pressable onPress={() => void markAllNotificationsRead()}><ThemedText style={{ color: theme.primary }}>Mark all read</ThemedText></Pressable>
           <Ionicons name="options-outline" size={20} color={theme.textSecondary} />
         </View>
       </View>
       <ScrollView contentContainerStyle={styles.list}>
-        <ThemedText themeColor="textSecondary" style={styles.group}>
-          TODAY
-        </ThemedText>
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <View style={[styles.icon, { backgroundColor: theme.primary }]}>
-            <Ionicons name="notifications" size={16} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.cardTop}>
-              <ThemedText style={styles.cardTitle}>Task Alert: Call John</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.ago}>
-                15m ago
-              </ThemedText>
-            </View>
-            <ThemedText themeColor="textSecondary">
-              Scheduled for 4:00 PM. John is expecting your callback.
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.primary, borderWidth: 1 }]}>
-          <View style={[styles.icon, { backgroundColor: theme.primary }]}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.cardTop}>
-              <ThemedText style={styles.cardTitle}>AI Scheduling Slot</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.ago}>
-                2h ago
-              </ThemedText>
-            </View>
-            <ThemedText themeColor="textSecondary">
-              ORDINA noticed you have a free slot at 2 PM. Schedule study time?
-            </ThemedText>
-            <View style={styles.actions}>
-              <Pressable style={[styles.schedule, { backgroundColor: theme.primary }]} onPress={() => router.push('/ai')}>
-                <ThemedText style={{ color: theme.onPrimary, fontFamily: 'Poppins_600SemiBold' }}>Schedule</ThemedText>
-              </Pressable>
-              <Pressable style={styles.dismiss}>
-                <ThemedText themeColor="textSecondary">Dismiss</ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        <ThemedText themeColor="textSecondary" style={styles.group}>
-          YESTERDAY
-        </ThemedText>
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <View style={[styles.icon, { backgroundColor: theme.danger }]}>
-            <Ionicons name="warning" size={16} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.cardTop}>
-              <ThemedText style={styles.cardTitle}>Project Deadline Approaching</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.ago}>
-                1d ago
-              </ThemedText>
-            </View>
-            <ThemedText themeColor="textSecondary">
-              React Dashboard Rebuild milestone due in 3 days. 2 overdue tasks remaining.
-            </ThemedText>
-          </View>
-        </View>
+        {notifications.map((notification) => <View key={notification.id} style={[styles.card, { backgroundColor: theme.card, opacity: notification.read ? 0.65 : 1 }]}><View style={[styles.icon, { backgroundColor: theme.primary }]}><Ionicons name="notifications" size={16} color="#FFFFFF" /></View><View style={{ flex: 1 }}><ThemedText style={styles.cardTitle}>{notification.title}</ThemedText><ThemedText themeColor="textSecondary">{notification.message}</ThemedText></View></View>)}
+        {notifications.length === 0 && <ThemedText themeColor="textSecondary">No notifications yet.</ThemedText>}
       </ScrollView>
     </SafeAreaView>
   );

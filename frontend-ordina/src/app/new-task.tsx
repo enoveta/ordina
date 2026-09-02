@@ -55,7 +55,7 @@ export default function NewTaskScreen() {
 
   const isEditMode = Boolean(taskToEdit);
 
-  function saveTask() {
+  async function saveTask() {
     const basePayload = {
       title,
       description,
@@ -71,17 +71,17 @@ export default function NewTaskScreen() {
     };
 
     if (taskToEdit) {
-      updateTask(taskToEdit.id, basePayload);
+      await updateTask(taskToEdit.id, basePayload);
     } else {
-      addTask(basePayload);
+      await addTask(basePayload);
     }
 
     router.back();
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!taskToEdit) return;
-    deleteTask(taskToEdit.id);
+    await deleteTask(taskToEdit.id);
     router.back();
   }
 
@@ -217,10 +217,10 @@ export default function NewTaskScreen() {
           <Switch value={reminder} onValueChange={setReminder} trackColor={{ true: theme.primary }} />
         </View>
 
-        <PrimaryButton label={isEditMode ? 'Save Changes' : 'Create Task'} onPress={saveTask} />
+        <PrimaryButton label={isEditMode ? 'Save Changes' : 'Create Task'} onPress={() => void saveTask()} />
 
         {isEditMode && (
-          <Pressable onPress={handleDelete} style={[styles.deleteButton, { borderColor: theme.danger }]}>
+          <Pressable onPress={() => void handleDelete()} style={[styles.deleteButton, { borderColor: theme.danger }]}> 
             <ThemedText style={{ color: theme.danger }}>Delete Task</ThemedText>
           </Pressable>
         )}

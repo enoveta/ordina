@@ -2,6 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
+import { api, setAuthToken } from '@/services/api';
+
 const KEYS = {
   onboarding: 'ordina.hasSeenOnboarding',
   session: 'ordina.session',
@@ -33,8 +35,10 @@ async function write(key: string, value: string | null) {
 }
 
 export type AuthUser = {
+  id?: number;
   name: string;
   email: string;
+  token?: string;
 };
 
 type AuthState = {
@@ -44,8 +48,8 @@ type AuthState = {
   user: AuthUser | null;
   hydrate: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
-  signIn: (user: AuthUser) => Promise<void>;
-  signUp: (user: AuthUser) => Promise<void>;
+  signIn: (credentials: { email: string; password: string }) => Promise<void>;
+  signUp: (payload: { name: string; email: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -72,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isSignedIn: Boolean(user),
       user,
     });
+    setAuthToken(user?.token);
   },
 
   completeOnboarding: async () => {
@@ -79,20 +84,37 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ hasSeenOnboarding: true });
   },
 
-  signIn: async (user) => {
+  signIn: async ({ email, password }) => {
+    const { data } = await api.post('/api/auth/login', { email, password });
+    const user: AuthUser = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      token: data.token,
+    };
     await write(KEYS.session, JSON.stringify(user));
     await write(KEYS.onboarding, '1');
+    setAuthToken(user.token);
     set({ isSignedIn: true, user, hasSeenOnboarding: true });
   },
 
-  signUp: async (user) => {
+  signUp: async ({ name, email, password }) => {
+    const { data } = await api.post('/api/auth/register', { name, email, password });
+    const user: AuthUser = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      token: data.token,
+    };
     await write(KEYS.session, JSON.stringify(user));
     await write(KEYS.onboarding, '1');
+    setAuthToken(user.token);
     set({ isSignedIn: true, user, hasSeenOnboarding: true });
   },
 
   signOut: async () => {
     await write(KEYS.session, null);
+    setAuthToken();
     set({ isSignedIn: false, user: null });
   },
 }));

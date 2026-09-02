@@ -1,0 +1,38 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { PrimaryButton } from '@/components/primary-button';
+import { ThemedText } from '@/components/themed-text';
+import { useTheme } from '@/hooks/use-theme';
+import { useProjectsStore } from '@/store/projects-store';
+
+export default function NewProjectScreen() {
+  const theme = useTheme();
+  const addProject = useProjectsStore((state) => state.addProject);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+
+  async function save() {
+    if (!name.trim()) return;
+    await addProject({ name: name.trim(), description, dueDate: dueDate || undefined });
+    router.back();
+  }
+
+  return <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
+    <View style={styles.header}><ThemedText style={styles.title}>New Project</ThemedText><Pressable onPress={() => router.back()}><ThemedText>Close</ThemedText></Pressable></View>
+    <View style={styles.form}>
+      <ThemedText themeColor="textSecondary">PROJECT NAME</ThemedText>
+      <TextInput value={name} onChangeText={setName} placeholder="e.g. Mobile app launch" placeholderTextColor={theme.textSecondary} style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} />
+      <ThemedText themeColor="textSecondary">DESCRIPTION</ThemedText>
+      <TextInput value={description} onChangeText={setDescription} multiline placeholder="What is this project about?" placeholderTextColor={theme.textSecondary} style={[styles.area, { backgroundColor: theme.input, color: theme.text }]} />
+      <ThemedText themeColor="textSecondary">DUE DATE</ThemedText>
+      <TextInput value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textSecondary} style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} />
+      <PrimaryButton label="Create Project" onPress={() => void save()} />
+    </View>
+  </SafeAreaView>;
+}
+
+const styles = StyleSheet.create({ safe: { flex: 1 }, header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20 }, title: { fontSize: 22, fontFamily: 'Poppins_700Bold' }, form: { padding: 20, gap: 10 }, input: { borderRadius: 10, padding: 14, marginBottom: 10 }, area: { minHeight: 100, borderRadius: 10, padding: 14, marginBottom: 10, textAlignVertical: 'top' } });

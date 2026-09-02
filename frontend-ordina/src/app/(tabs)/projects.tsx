@@ -5,6 +5,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,14 +15,16 @@ import { href } from '@/utils/href';
 
 export default function ProjectsScreen() {
   const theme = useTheme();
-  const { projects } = useProjectsStore();
+  const { projects, loadProjects } = useProjectsStore();
+
+  useEffect(() => { void loadProjects(); }, [loadProjects]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
         <ThemedText style={styles.title}>Projects</ThemedText>
         <Pressable
-          onPress={() => {}}
+          onPress={() => router.push(href('/new-project'))}
           style={[styles.addBtn, { backgroundColor: theme.primary }]}
         >
           <Ionicons name="add" size={20} color="#FFFFFF" />

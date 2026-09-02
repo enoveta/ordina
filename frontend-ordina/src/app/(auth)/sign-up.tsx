@@ -29,8 +29,17 @@ export default function SignUpScreen() {
       Alert.alert('Create Account', 'Passwords do not match.');
       return;
     }
-    await signUp({ name: name.trim(), email: email.trim() });
-    router.replace(href('/(tabs)'));
+
+    try {
+      await signUp({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      });
+      router.replace(href('/(tabs)'));
+    } catch (error: any) {
+      Alert.alert('Create account failed', error?.response?.data?.message ?? 'Unable to connect to the server. Check your network connection.');
+    }
   }
 
   return (
@@ -81,7 +90,7 @@ export default function SignUpScreen() {
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() =>
-                Alert.alert('Google', 'Google sign-up will connect when account services are configured.')
+                Alert.alert('Google', 'Google sign-up is not configured yet. Please use email sign-up.')
               }>
               <Ionicons name="logo-google" size={18} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Google</ThemedText>
@@ -89,7 +98,7 @@ export default function SignUpScreen() {
             <Pressable
               style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() =>
-                Alert.alert('Apple', 'Apple sign-up will connect when account services are configured.')
+                Alert.alert('Apple', 'Apple sign-up is not configured yet. Please use email sign-up.')
               }>
               <Ionicons name="logo-apple" size={20} color={theme.text} />
               <ThemedText style={styles.socialLabel}>Apple</ThemedText>

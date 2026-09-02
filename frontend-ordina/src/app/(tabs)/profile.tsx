@@ -180,6 +180,16 @@ export default function ProfileScreen() {
           <ThemedText style={styles.notifLinkText}>View Notifications</ThemedText>
           <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
         </Pressable>
+        <Pressable onPress={() => router.push(href('/goals'))} style={[styles.notifLink, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="flag-outline" size={20} color={theme.primary} />
+          <ThemedText style={styles.notifLinkText}>Manage Goals</ThemedText>
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+        </Pressable>
+        <Pressable onPress={() => router.push(href('/reminders'))} style={[styles.notifLink, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="alarm-outline" size={20} color={theme.primary} />
+          <ThemedText style={styles.notifLinkText}>Manage Reminders</ThemedText>
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+        </Pressable>
 
         <ThemedText themeColor="textSecondary" style={styles.version}>
           ORDINA v1.0.0 • Put order in your day
