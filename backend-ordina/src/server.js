@@ -218,6 +218,31 @@ app.post('/api/notifications/read-all', async (req, res) => {
   res.json({ ok: true });
 });
 
+function buildSchedule(prompt) {
+  const text = String(prompt || '').toLowerCase();
+  const suggestions = [];
+  if (text.includes('react') || text.includes('project')) suggestions.push({ title: 'Work on project', category: 'work', startTime: '09:00', duration: '2h' });
+  if (text.includes('study') || text.includes('learn')) suggestions.push({ title: 'Study session', category: 'learning', startTime: '11:00', duration: '2h' });
+  if (text.includes('call') || text.includes('meeting')) suggestions.push({ title: 'Call or meeting', category: 'personal', startTime: '16:00', duration: '30m' });
+  if (text.includes('gym') || text.includes('workout')) suggestions.push({ title: 'Workout', category: 'health', startTime: '18:30', duration: '1h' });
+  if (!suggestions.length) suggestions.push({ title: String(prompt || 'Focused work').trim(), category: 'work', startTime: '09:00', duration: '1h' });
+  return suggestions;
+}
+
+app.post('/api/ai/schedule', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
+  const prompt = String(req.body?.prompt || '').trim();
+  if (!prompt) return res.status(400).json({ message: 'A scheduling request is required.' });
+
+  try {
+    const suggestions = buildSchedule(prompt);
+    res.json({ message: `I created ${suggestions.length} suggestions from your request.`, suggestions });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to create a schedule.', error: error.message });
+  }
+});
+
 function taskPriority(value) {
   return value === 'high' || value === 3 ? 3 : value === 'medium' || value === 2 ? 2 : 1;
 }
@@ -280,11 +305,13 @@ app.patch('/api/tasks/:id/complete', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/dashboard', async (_req, res) => {
+app.get('/api/dashboard', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
   try {
     const today = new Date().toISOString().slice(0, 10);
     const tasks = await prisma.task.findMany({
-      where: { dueAt: { gte: new Date(today).toISOString() } },
+      where: { userId, dueAt: { gte: new Date(today).toISOString() } },
       orderBy: { dueAt: 'asc' },
       include: { categories: { include: { category: true } } },
       take: 50,
@@ -313,9 +340,12 @@ app.get('/api/dashboard', async (_req, res) => {
   }
 });
 
-app.get('/api/tasks', async (_req, res) => {
+app.get('/api/tasks', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
   try {
     const tasks = await prisma.task.findMany({
+      where: { userId },
       orderBy: { dueAt: 'asc' },
       include: { categories: { include: { category: true } } },
     });

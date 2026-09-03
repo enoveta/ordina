@@ -10,20 +10,44 @@ import { ThemedText } from '@/components/themed-text';
 import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { href } from '@/utils/href';
+import { api } from '@/services/api';
+import { useTasksStore } from '@/store/tasks-store';
 
-const USER_PROMPT =
-  'Tomorrow I need to finish my React project, study PostgreSQL for two hours, call John at 4 PM, and go to the gym in the evening. Schedule these for me.';
-
-const PROPOSED = [
-  { time: '9:00 AM - 11:00 AM', title: 'Finish React project', color: '#8B5CF6', category: 'Work' },
-  { time: '11:00 AM - 1:00 PM', title: 'Study PostgreSQL', color: '#3B82F6', category: 'Education' },
-  { time: '4:00 PM - 4:30 PM', title: 'Call John', color: '#F59E0B', category: 'Personal' },
-  { time: '6:30 PM - 7:30 PM', title: 'Gym', color: '#22C55E', category: 'Health' },
-];
+type Suggestion = { title: string; category: 'work' | 'personal' | 'health' | 'learning' | 'design' | 'database'; startTime: string; duration: string };
 
 export default function OrdinaAiScreen() {
   const theme = useTheme();
+  const addTask = useTasksStore((state) => state.addTask);
   const [draft, setDraft] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [answer, setAnswer] = useState('Tell me what you want to schedule and I will turn it into tasks.');
+  const [loading, setLoading] = useState(false);
+
+  async function askAssistant() {
+    const request = draft.trim();
+    if (!request || loading) return;
+    setPrompt(request);
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/ai/schedule', { prompt: request });
+      setSuggestions(data.suggestions ?? []);
+      setAnswer(data.message ?? 'Here is a schedule based on your request.');
+      setDraft('');
+    } catch {
+      setAnswer('I could not reach the assistant. Check that the backend is running and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmSchedule() {
+    const dueDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    for (const suggestion of suggestions) {
+      await addTask({ title: suggestion.title, description: 'Created by ORDINA Assistant', status: 'todo', priority: 'medium', category: suggestion.category, dueDate, startTime: suggestion.startTime, duration: suggestion.duration, completed: false });
+    }
+    router.push(href('/schedule-created'));
+  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
@@ -40,25 +64,21 @@ export default function OrdinaAiScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.chat} keyboardShouldPersistTaps="handled">
-        <View style={[styles.userBubble, { backgroundColor: theme.card }]}>
-          <ThemedText style={styles.bubbleText}>{USER_PROMPT}</ThemedText>
-        </View>
+        {prompt ? <View style={[styles.userBubble, { backgroundColor: theme.card }]}><ThemedText style={styles.bubbleText}>{prompt}</ThemedText></View> : null}
 
         <View style={styles.aiRow}>
           <Ionicons name="sparkles" size={16} color={theme.primary} />
-          <ThemedText style={{ color: theme.primary, flex: 1 }}>
-            I&apos;ve structured your schedule for tomorrow, August 28
-          </ThemedText>
+          <ThemedText style={{ color: theme.primary, flex: 1 }}>{answer}</ThemedText>
         </View>
 
-        <View style={[styles.proposal, { backgroundColor: theme.card }]}>
-          <ThemedText style={styles.proposalTitle}>Proposed August 28</ThemedText>
-          {PROPOSED.map((item) => (
+        {suggestions.length > 0 ? <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+          <ThemedText style={styles.proposalTitle}>Suggested schedule</ThemedText>
+          {suggestions.map((item) => (
             <View key={item.title} style={styles.proposalItem}>
-              <View style={[styles.bar, { backgroundColor: item.color }]} />
+              <View style={[styles.bar, { backgroundColor: theme.primary }]} />
               <View style={{ flex: 1 }}>
                 <ThemedText themeColor="textSecondary" style={styles.meta}>
-                  {item.time}
+                  {item.startTime} · {item.duration}
                 </ThemedText>
                 <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
               </View>
@@ -66,13 +86,13 @@ export default function OrdinaAiScreen() {
           ))}
           <View style={styles.actions}>
             <View style={{ flex: 1 }}>
-              <PrimaryButton label="Confirm Schedule" onPress={() => router.push(href('/schedule-created'))} />
+              <PrimaryButton label="Save Tasks" onPress={() => void confirmSchedule()} />
             </View>
             <Pressable style={[styles.edit, { backgroundColor: theme.backgroundElement }]}>
               <ThemedText>Edit</ThemedText>
             </Pressable>
           </View>
-        </View>
+        </View> : null}
       </ScrollView>
 
       <View style={[styles.composer, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -83,8 +103,8 @@ export default function OrdinaAiScreen() {
           placeholderTextColor={theme.textSecondary}
           style={[styles.input, { color: theme.text }]}
         />
-        <Pressable style={[styles.mic, { backgroundColor: theme.primary }]}>
-          <Ionicons name="mic" size={18} color={theme.onPrimary} />
+        <Pressable onPress={() => void askAssistant()} style={[styles.mic, { backgroundColor: theme.primary, opacity: loading ? 0.5 : 1 }]}>
+          <Ionicons name="send" size={18} color={theme.onPrimary} />
         </Pressable>
       </View>
     </SafeAreaView>

@@ -90,12 +90,6 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
-  function cycleTheme() {
-    const order: ThemePreference[] = ['light', 'dark', 'system'];
-    const next = order[(order.indexOf(preference) + 1) % order.length];
-    setPreference(next);
-  }
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       {/* Top right settings icon */}
@@ -131,11 +125,22 @@ export default function ProfileScreen() {
         {/* Preferences */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <SectionLabel title="PREFERENCES" />
-          <SettingRow
-            label="Theme"
-            value={THEME_LABELS[preference]}
-            onPress={cycleTheme}
-          />
+          <View style={styles.themeRow}>
+            <ThemedText style={styles.settingLabel}>Theme</ThemedText>
+            <View style={[styles.themeOptions, { backgroundColor: theme.backgroundElement }]}>
+              {(['light', 'dark', 'system'] as ThemePreference[]).map((option) => (
+                <Pressable
+                  key={option}
+                  onPress={() => setPreference(option)}
+                  style={[styles.themeOption, preference === option && { backgroundColor: theme.primary }]}
+                >
+                  <ThemedText style={{ color: preference === option ? theme.onPrimary : theme.textSecondary, fontSize: 12 }}>
+                    {THEME_LABELS[option]}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
           <SettingRow label="Default View" value="Calendar" />
           <SettingRow label="Start of Week" value="Monday" showChevron />
         </View>
@@ -269,4 +274,7 @@ const styles = StyleSheet.create({
   },
   notifLinkText: { flex: 1, fontSize: 15, fontFamily: 'Poppins_500Medium' },
   version: { fontSize: 12, textAlign: 'center', paddingBottom: 8 },
+  themeRow: { gap: 10, paddingVertical: 12 },
+  themeOptions: { flexDirection: 'row', borderRadius: 10, padding: 3, gap: 3 },
+  themeOption: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
 });
