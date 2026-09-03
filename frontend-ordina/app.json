@@ -6,14 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/images/ordina-logo.png",
     "scheme": "ordina",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/ordina-logo.png",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#000000",
+        "backgroundColor": "#F8FAFC",
         "foregroundImage": "./assets/images/ordina-logo.png"
       },
       "predictiveBackGestureEnabled": false
@@ -22,18 +22,49 @@
       "output": "static",
       "favicon": "./assets/images/ordina-logo.png"
     },
-    "plugins": [
+      "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#000000",
+          "backgroundColor": "#F8FAFC",
           "image": "./assets/images/ordina-logo.png",
           "imageWidth": 200
         }
       ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#5C4DF2"
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "ORDINA uses the microphone so you can speak tasks instead of typing them."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "ORDINA matches a name you mention, such as Call John. Your full address book is not uploaded."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "ORDINA can read busy times and add events after you confirm a plan."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ORDINA uses location only for arrival reminders you choose to create."
+        }
+      ],
+      "expo-image-picker"
     ],
     "experiments": {
       "typedRoutes": true,

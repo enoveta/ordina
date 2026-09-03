@@ -14,10 +14,11 @@ export default function NewProjectScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState('medium');
 
   async function save() {
     if (!name.trim()) return;
-    await addProject({ name: name.trim(), description, dueDate: dueDate || undefined });
+    await addProject({ name: name.trim(), description, dueDate: dueDate || undefined, priority });
     router.back();
   }
 
@@ -30,6 +31,14 @@ export default function NewProjectScreen() {
       <TextInput value={description} onChangeText={setDescription} multiline placeholder="What is this project about?" placeholderTextColor={theme.textSecondary} style={[styles.area, { backgroundColor: theme.input, color: theme.text }]} />
       <ThemedText themeColor="textSecondary">DUE DATE</ThemedText>
       <TextInput value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD" placeholderTextColor={theme.textSecondary} style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} />
+      <ThemedText themeColor="textSecondary">PRIORITY</ThemedText>
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+        {['low', 'medium', 'high'].map((item) => (
+          <Pressable key={item} onPress={() => setPriority(item)} style={{ borderWidth: 1, borderColor: priority === item ? theme.primary : theme.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 }}>
+            <ThemedText>{item}</ThemedText>
+          </Pressable>
+        ))}
+      </View>
       <PrimaryButton label="Create Project" onPress={() => void save()} />
     </View>
   </SafeAreaView>;

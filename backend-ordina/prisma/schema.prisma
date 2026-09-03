@@ -7,114 +7,163 @@ datasource db {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  displayName  String     @map("display_name")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  tasks        Task[]
-  categories   Category[]
-  projects     Project[]
-  goals        Goal[]
-  reminders    Reminder[]
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  displayName   String         @map("display_name")
+  timezone      String         @default("UTC")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  tasks         Task[]
+  categories    Category[]
+  projects      Project[]
+  goals         Goal[]
+  reminders     Reminder[]
   notifications Notification[]
+  aiMessages    AiMessage[]
 
   @@map("users")
 }
 
 model Task {
-  id          Int           @id @default(autoincrement())
-  userId      Int           @map("user_id")
-  projectId   Int?          @map("project_id")
-  title       String
-  description String?
-  status      TaskStatus    @default(pending)
-  priority    Int           @default(0)
-  dueAt       DateTime?     @map("due_at")
-  completedAt DateTime?     @map("completed_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project     Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  categories  TaskCategory[]
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  projectId       Int?           @map("project_id")
+  goalId          Int?           @map("goal_id")
+  parentTaskId    Int?           @map("parent_task_id")
+  title           String
+  description     String?
+  status          TaskStatus     @default(pending)
+  priority        Int            @default(0)
+  dueAt           DateTime?      @map("due_at")
+  startTime       String?        @map("start_time")
+  duration        String?
+  recurrence      String         @default("none")
+  recurrenceRule  String?        @map("recurrence_rule")
+  occurrenceDate  String?        @map("occurrence_date")
+  reminderEnabled Boolean        @default(false) @map("reminder_enabled")
+  completedAt     DateTime?      @map("completed_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project         Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  goal            Goal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  parent          Task?          @relation("TaskOccurrences", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  occurrences     Task[]         @relation("TaskOccurrences")
+  categories      TaskCategory[]
+  reminders       Reminder[]
 
   @@index([userId])
   @@index([userId, status])
   @@index([dueAt])
   @@index([projectId])
+  @@index([goalId])
+  @@index([parentTaskId, occurrenceDate])
   @@map("tasks")
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
+  id          Int        @id @default(autoincrement())
+  userId      Int        @map("user_id")
   name        String
   description String?
-  status      String   @default("active")
-  color       String   @default("#5C4DF2")
-  dueDate     DateTime? @map("due_date")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String     @default("active")
+  priority    String     @default("medium")
+  color       String     @default("#5C4DF2")
+  startDate   DateTime?  @map("start_date")
+  dueDate     DateTime?  @map("due_date")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks       Task[]
+  goals       Goal[]
+  reminders   Reminder[]
 
   @@index([userId])
   @@map("projects")
 }
 
 model Goal {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
+  id          Int        @id @default(autoincrement())
+  userId      Int        @map("user_id")
+  projectId   Int?       @map("project_id")
   title       String
   description String?
-  target      Int      @default(1)
-  current     Int      @default(0)
-  dueDate     DateTime? @map("due_date")
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String     @default("not_started")
+  priority    String     @default("medium")
+  target      Int        @default(1)
+  current     Int        @default(0)
+  dueDate     DateTime?  @map("due_date")
+  completed   Boolean    @default(false)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tasks       Task[]
+  reminders   Reminder[]
 
   @@index([userId])
   @@map("goals")
 }
 
 model Reminder {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
-  title       String
-  remindAt    DateTime @map("remind_at")
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  taskId    Int?     @map("task_id")
+  projectId Int?     @map("project_id")
+  goalId    Int?     @map("goal_id")
+  title     String
+  remindAt  DateTime @map("remind_at")
+  enabled   Boolean  @default(true)
+  status    String   @default("scheduled")
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  goal      Goal?    @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([userId, remindAt])
   @@map("reminders")
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  title     String
-  message   String
-  type      String   @default("info")
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  title       String
+  message     String
+  type        String   @default("info")
+  relatedType String?  @map("related_type")
+  relatedId   Int?     @map("related_id")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
   @@map("notifications")
 }
 
+model AiMessage {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  role      String
+  content   String
+  actions   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_messages")
+}
+
 model Category {
-  id        Int           @id @default(autoincrement())
-  userId    Int           @map("user_id")
+  id        Int            @id @default(autoincrement())
+  userId    Int            @map("user_id")
   name      String
   color     String?
-  createdAt DateTime      @default(now()) @map("created_at")
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now()) @map("created_at")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks     TaskCategory[]
 
   @@unique([userId, name])

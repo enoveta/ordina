@@ -1,20 +1,23 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useI18n } from '@/providers/i18n-provider';
 import { useAuthStore } from '@/store/auth-store';
 import { useTasksStore, type Task } from '@/store/tasks-store';
+import { api } from '@/services/api';
 
-function formatGreeting(): string {
+function formatGreeting(t: (path: string) => string): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return t('home.morning');
+  if (hour < 17) return t('home.afternoon');
+  return t('home.evening');
 }
 
 function formatDate(): string {
@@ -28,7 +31,7 @@ function formatDate(): string {
 function getCategoryColor(category: Task['category']): string {
   switch (category) {
     case 'work':
-      return '#8B5CF6';
+      return '#5C4DF2';
     case 'health':
       return '#22C55E';
     case 'learning':
@@ -51,11 +54,19 @@ function firstName(name?: string | null) {
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const { tasks, toggleComplete, loadTasks } = useTasksStore();
+  const [nextUp, setNextUp] = useState<string | null>(null);
 
   useEffect(() => {
     void loadTasks();
+    void api
+      .get('/api/dashboard')
+      .then(({ data }) => {
+        if (data?.recommendation?.title) setNextUp(data.recommendation.title);
+      })
+      .catch(() => undefined);
   }, [loadTasks]);
 
   const today = new Date().toISOString().split('T')[0];
@@ -73,15 +84,18 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <ThemedText style={styles.greeting}>
-              {formatGreeting()}, {firstName(user?.name)}
+              {formatGreeting(t)}, {firstName(user?.name)}
             </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.dateText}>
               {formatDate()}
             </ThemedText>
           </View>
-          <Pressable onPress={() => router.push('/ai')} style={styles.orb}>
-            <Image source={require('@/assets/images/ordina-logo.png')} style={styles.orbImage} contentFit="contain" />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <ThemeToggle />
+            <Pressable onPress={() => router.push('/ai')} style={[styles.orb, { backgroundColor: theme.backgroundSelected }]}>
+              <Image source={require('@/assets/images/ordina-logo.png')} style={styles.orbImage} contentFit="contain" />
+            </Pressable>
+          </View>
         </View>
 
         <Pressable
@@ -89,15 +103,22 @@ export default function HomeScreen() {
           style={[styles.aiBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="sparkles" size={18} color={theme.primary} />
           <ThemedText themeColor="textSecondary" style={styles.aiBarText}>
-            Tell ORDINA what to do...
+            {t('home.tellOrdina')}
           </ThemedText>
           <Ionicons name="mic-outline" size={20} color={theme.textSecondary} />
         </Pressable>
 
-        <ThemedText style={styles.sectionTitle}>Today&apos;s Schedule</ThemedText>
+        {nextUp ? (
+          <View style={[styles.emptyCard, { backgroundColor: theme.card }]}>
+            <ThemedText themeColor="textSecondary">Do this now</ThemedText>
+            <ThemedText style={styles.sectionTitle}>{nextUp}</ThemedText>
+          </View>
+        ) : null}
+
+        <ThemedText style={styles.sectionTitle}>{t('home.todaySchedule')}</ThemedText>
         {todayTasks.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: theme.card }]}>
-            <ThemedText themeColor="textSecondary">No tasks for today.</ThemedText>
+            <ThemedText themeColor="textSecondary">{t('home.noTasksToday')}</ThemedText>
           </View>
         ) : (
           todayTasks.map((task) => (
@@ -130,7 +151,7 @@ export default function HomeScreen() {
 
         {upcomingTasks.length > 0 ? (
           <>
-            <ThemedText style={styles.sectionTitle}>Upcoming tomorrow</ThemedText>
+            <ThemedText style={styles.sectionTitle}>{t('home.upcomingTomorrow')}</ThemedText>
             {upcomingTasks.map((task) => (
               <View key={task.id} style={[styles.upcoming, { backgroundColor: theme.card }]}>
                 <View style={[styles.dot, { backgroundColor: getCategoryColor(task.category) }]} />
@@ -158,7 +179,8 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 24, fontFamily: 'Poppins_700Bold', lineHeight: 30 },
   dateText: { fontSize: 14, marginTop: 2 },
-  orb: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000000' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  orb: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
   orbImage: { width: 48, height: 48 },
   aiBar: {
     flexDirection: 'row',

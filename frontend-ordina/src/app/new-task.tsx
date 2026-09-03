@@ -10,35 +10,40 @@ import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useProjectsStore } from '@/store/projects-store';
 import { useTasksStore, type Category, type Priority } from '@/store/tasks-store';
+import { scheduleLocalReminder } from '@/services/notifications';
 
 const CATEGORIES: Category[] = ['work', 'personal', 'health', 'learning', 'design', 'database'];
+const RECURRENCE = ['none', 'daily', 'weekly', 'monthly', 'custom'] as const;
 
 export default function NewTaskScreen() {
   const theme = useTheme();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
   const addTask = useTasksStore((s) => s.addTask);
   const updateTask = useTasksStore((s) => s.updateTask);
   const deleteTask = useTasksStore((s) => s.deleteTask);
   const tasks = useTasksStore((s) => s.tasks);
-  const projects = useProjectsStore((s) => s.projects);
+  const { projects, loadProjects } = useProjectsStore();
+  const taskId = Array.isArray(params.id) ? params.id[0] : params.id;
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   const taskToEdit = useMemo(
-    () => tasks.find((task) => task.id === params.id),
-    [tasks, params.id]
+    () => tasks.find((task) => task.id === taskId),
+    [tasks, taskId]
   );
 
-  const [title, setTitle] = useState(taskToEdit?.title ?? 'Design settings architecture');
-  const [description, setDescription] = useState(
-    taskToEdit?.description ??
-      'Create the settings pane layout wireframes, mapping preferences, notifications toggle arrays, and account management lists.'
-  );
+  const [title, setTitle] = useState(taskToEdit?.title ?? '');
+  const [description, setDescription] = useState(taskToEdit?.description ?? '');
   const [priority, setPriority] = useState<Priority>(taskToEdit?.priority ?? 'medium');
   const [category, setCategory] = useState<Category>(taskToEdit?.category ?? 'work');
-  const [reminder, setReminder] = useState(taskToEdit?.reminder ?? true);
-  const [projectId, setProjectId] = useState(taskToEdit?.projectId ?? projects[0]?.id);
-  const [dueDate, setDueDate] = useState(taskToEdit?.dueDate ?? '2026-08-28');
-  const [startTime, setStartTime] = useState(taskToEdit?.startTime ?? '10:00');
-  const [duration, setDuration] = useState(taskToEdit?.duration ?? '1h 30m');
+  const [reminder, setReminder] = useState(taskToEdit?.reminder ?? false);
+  const [projectId, setProjectId] = useState(taskToEdit?.projectId);
+  const [dueDate, setDueDate] = useState(taskToEdit?.dueDate ?? new Date().toISOString().slice(0, 10));
+  const [startTime, setStartTime] = useState(taskToEdit?.startTime ?? '');
+  const [duration, setDuration] = useState(taskToEdit?.duration ?? '1h');
+  const [recurrence, setRecurrence] = useState<(typeof RECURRENCE)[number]>(taskToEdit?.recurrence ?? 'none');
 
   useEffect(() => {
     if (!taskToEdit) return;
@@ -47,26 +52,29 @@ export default function NewTaskScreen() {
     setPriority(taskToEdit.priority);
     setCategory(taskToEdit.category);
     setReminder(taskToEdit.reminder ?? false);
-    setProjectId(taskToEdit.projectId ?? projects[0]?.id);
-    setDueDate(taskToEdit.dueDate ?? '2026-08-28');
-    setStartTime(taskToEdit.startTime ?? '10:00');
-    setDuration(taskToEdit.duration ?? '1h 30m');
+    setProjectId(taskToEdit.projectId);
+    setDueDate(taskToEdit.dueDate ?? new Date().toISOString().slice(0, 10));
+    setStartTime(taskToEdit.startTime ?? '');
+    setDuration(taskToEdit.duration ?? '1h');
+    setRecurrence(taskToEdit.recurrence ?? 'none');
   }, [taskToEdit, projects]);
 
   const isEditMode = Boolean(taskToEdit);
 
   async function saveTask() {
+    if (!title.trim()) return;
     const basePayload = {
-      title,
+      title: title.trim(),
       description,
       status: taskToEdit?.status ?? 'todo',
       priority,
       category,
       projectId,
       dueDate,
-      startTime,
+      startTime: startTime || undefined,
       duration,
       reminder,
+      recurrence,
       completed: taskToEdit?.completed ?? false,
     };
 
@@ -74,6 +82,11 @@ export default function NewTaskScreen() {
       await updateTask(taskToEdit.id, basePayload);
     } else {
       await addTask(basePayload);
+    }
+
+    if (reminder && dueDate) {
+      const when = new Date(`${dueDate}T${startTime || '09:00'}:00`);
+      await scheduleLocalReminder(title.trim(), 'Task reminder', when, { type: 'task' });
     }
 
     router.back();
@@ -100,6 +113,8 @@ export default function NewTaskScreen() {
         <TextInput
           value={title}
           onChangeText={setTitle}
+          placeholder="Task title"
+          placeholderTextColor={theme.textSecondary}
           style={[styles.input, { backgroundColor: theme.input, color: theme.text }]}
         />
 
@@ -155,8 +170,9 @@ export default function NewTaskScreen() {
             </ThemedText>
             <Pressable
               onPress={() => {
-                const nextProject = projects.find((p) => p.id !== projectId) ?? projects[0];
-                setProjectId(nextProject?.id);
+                const ids = [undefined, ...projects.map((p) => p.id)];
+                const index = ids.findIndex((id) => id === projectId);
+                setProjectId(ids[(index + 1) % ids.length]);
               }}
               style={[styles.input, styles.inline, { backgroundColor: theme.input }]}>
               <ThemedText numberOfLines={1}>{projects.find((p) => p.id === projectId)?.name ?? 'No project'}</ThemedText>
@@ -186,6 +202,26 @@ export default function NewTaskScreen() {
                   { backgroundColor: item === 'high' ? '#EF4444' : item === 'medium' ? '#F59E0B' : '#3B82F6' },
                 ]}
               />
+              <ThemedText style={{ textTransform: 'capitalize' }}>{item}</ThemedText>
+            </Pressable>
+          ))}
+        </View>
+
+        <ThemedText themeColor="textSecondary" style={styles.label}>
+          REPEAT
+        </ThemedText>
+        <View style={styles.chips}>
+          {RECURRENCE.map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => setRecurrence(item)}
+              style={[
+                styles.chip,
+                {
+                  borderColor: recurrence === item ? theme.primary : theme.border,
+                  backgroundColor: theme.card,
+                },
+              ]}>
               <ThemedText style={{ textTransform: 'capitalize' }}>{item}</ThemedText>
             </Pressable>
           ))}

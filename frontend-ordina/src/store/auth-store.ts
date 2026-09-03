@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { api, setAuthToken } from '@/services/api';
+import { useLockStore } from '@/store/lock-store';
 
 const KEYS = {
   onboarding: 'ordina.hasSeenOnboarding',
@@ -53,6 +54,21 @@ type AuthState = {
   signOut: () => Promise<void>;
 };
 
+function sessionFrom(data: unknown) {
+  const root = data as { data?: Record<string, unknown>; user?: Record<string, unknown>; token?: string };
+  const payload = (root.data ?? root) as {
+    user?: { id?: number; name?: string; displayName?: string; email?: string };
+    token?: string;
+  };
+  const userPayload = payload.user ?? {};
+  return {
+    id: userPayload.id,
+    name: userPayload.name ?? userPayload.displayName ?? '',
+    email: userPayload.email ?? '',
+    token: payload.token,
+  } as AuthUser;
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   hydrated: false,
   hasSeenOnboarding: false,
@@ -86,12 +102,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signIn: async ({ email, password }) => {
     const { data } = await api.post('/api/auth/login', { email, password });
-    const user: AuthUser = {
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      token: data.token,
-    };
+    const user = sessionFrom(data);
     await write(KEYS.session, JSON.stringify(user));
     await write(KEYS.onboarding, '1');
     setAuthToken(user.token);
@@ -100,12 +111,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signUp: async ({ name, email, password }) => {
     const { data } = await api.post('/api/auth/register', { name, email, password });
-    const user: AuthUser = {
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      token: data.token,
-    };
+    const user = sessionFrom(data);
+    if (!user.name) user.name = name;
     await write(KEYS.session, JSON.stringify(user));
     await write(KEYS.onboarding, '1');
     setAuthToken(user.token);
@@ -115,6 +122,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     await write(KEYS.session, null);
     setAuthToken();
+    useLockStore.getState().markLocked();
     set({ isSignedIn: false, user: null });
   },
 }));

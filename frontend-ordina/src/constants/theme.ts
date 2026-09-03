@@ -6,9 +6,9 @@
 import { Platform } from 'react-native';
 
 export const Brand = {
-  primary: '#8B5CF6',
-  secondary: '#A78BFA',
-  navy: '#000000',
+  primary: '#5C4DF2',
+  secondary: '#7C3AED',
+  navy: '#0F172A',
   white: '#FFFFFF',
   softBackground: '#F8FAFC',
   lightBorder: '#E2E8F0',
@@ -24,14 +24,14 @@ export const Colors = {
     textSecondary: '#64748B',
     background: '#F8FAFC',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#EDE9FE',
+    backgroundSelected: '#EEF2FF',
     card: '#FFFFFF',
     input: '#F1F5F9',
     border: '#E2E8F0',
-    primary: '#8B5CF6',
-    secondary: '#A78BFA',
-    aiAccent: '#8B5CF6',
-    onPrimary: '#000000',
+    primary: '#5C4DF2',
+    secondary: '#7C3AED',
+    aiAccent: '#7C3AED',
+    onPrimary: '#FFFFFF',
     success: '#22C55E',
     warning: '#F59E0B',
     danger: '#EF4444',
@@ -47,10 +47,10 @@ export const Colors = {
     card: '#1C1C1E',
     input: '#1C1C1E',
     border: '#2C2C2E',
-    primary: '#8B5CF6',
-    secondary: '#A78BFA',
-    aiAccent: '#8B5CF6',
-    onPrimary: '#000000',
+    primary: '#5C4DF2',
+    secondary: '#7C3AED',
+    aiAccent: '#7C3AED',
+    onPrimary: '#FFFFFF',
     success: '#22C55E',
     warning: '#F59E0B',
     danger: '#EF4444',
@@ -104,4 +104,4 @@ export const Radii = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
-export const THEME_PREFERENCE_KEY = 'ordina.themePreference';
+export const THEME_PREFERENCE_KEY = 'ordina.themePreference.v3';

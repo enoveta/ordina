@@ -1,53 +1,120 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { href } from '@/utils/href';
-import { api } from '@/services/api';
+import { confirmAiActions, fetchAiMessages, interpretInstruction, transcribeAudio } from '@/services/ai';
+import { createCalendarEvents, matchingContacts, pickTaskImage } from '@/services/device-integrations';
 import { useTasksStore } from '@/store/tasks-store';
+import { href } from '@/utils/href';
 
-type Suggestion = { title: string; category: 'work' | 'personal' | 'health' | 'learning' | 'design' | 'database'; startTime: string; duration: string };
+type VoiceState = 'ready' | 'listening' | 'processing' | 'understanding' | 'confirmation' | 'completed' | 'error';
+
+type ProposedTask = {
+  title: string;
+  description?: string;
+  date?: string;
+  startTime?: string;
+  durationMinutes?: number;
+  priority?: string;
+  reminder?: boolean;
+  conflictsWith?: string[];
+  suggestedStartTime?: string;
+};
 
 export default function OrdinaAiScreen() {
   const theme = useTheme();
-  const addTask = useTasksStore((state) => state.addTask);
+  const loadTasks = useTasksStore((s) => s.loadTasks);
   const [draft, setDraft] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [answer, setAnswer] = useState('Tell me what you want to schedule and I will turn it into tasks.');
-  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<{ role: string; content: string }[]>([]);
+  const [result, setResult] = useState<any>(null);
+  const [voice, setVoice] = useState<VoiceState>('ready');
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
 
-  async function askAssistant() {
-    const request = draft.trim();
-    if (!request || loading) return;
-    setPrompt(request);
-    setLoading(true);
+  useEffect(() => {
+    void fetchAiMessages()
+      .then((messages) => setHistory(messages.map((item: any) => ({ role: item.role, content: item.content }))))
+      .catch(() => undefined);
+  }, []);
+
+  async function send(text: string) {
+    const message = text.trim();
+    if (!message) return;
+    setVoice('understanding');
+    setHistory((rows) => [...rows, { role: 'user', content: message }]);
+    setDraft('');
     try {
-      const { data } = await api.post('/api/ai/schedule', { prompt: request });
-      setSuggestions(data.suggestions ?? []);
-      setAnswer(data.message ?? 'Here is a schedule based on your request.');
-      setDraft('');
-    } catch {
-      setAnswer('I could not reach the assistant. Check that the backend is running and try again.');
-    } finally {
-      setLoading(false);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const contacts = await matchingContacts(message).catch(() => []);
+      const data = await interpretInstruction({ message, timezone, contacts });
+      setResult(data);
+      setHistory((rows) => [...rows, { role: 'assistant', content: data.message || 'Here is what I understood.' }]);
+      setVoice(data.tasks?.length || data.reschedule ? 'confirmation' : 'completed');
+    } catch (error: any) {
+      setVoice('error');
+      Alert.alert('ORDINA AI', error?.response?.data?.message || error?.message || 'Unable to reach ORDINA AI.');
     }
   }
 
-  async function confirmSchedule() {
-    const dueDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    for (const suggestion of suggestions) {
-      await addTask({ title: suggestion.title, description: 'Created by ORDINA Assistant', status: 'todo', priority: 'medium', category: suggestion.category, dueDate, startTime: suggestion.startTime, duration: suggestion.duration, completed: false });
+  async function confirm() {
+    try {
+      await confirmAiActions({ tasks: result?.tasks ?? [], reschedule: result?.reschedule });
+      await createCalendarEvents(result?.tasks ?? []).catch(() => undefined);
+      await loadTasks();
+      setVoice('completed');
+      setResult(null);
+      router.push(href('/schedule-created'));
+    } catch (error: any) {
+      Alert.alert('Confirm', error?.response?.data?.message || 'Could not save those actions.');
     }
-    router.push(href('/schedule-created'));
   }
+
+  async function toggleVoice() {
+    try {
+      if (recording) {
+        setVoice('processing');
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        setRecording(null);
+        if (!uri) {
+          setVoice('error');
+          return;
+        }
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        const text = await transcribeAudio(base64, 'audio/m4a');
+        setDraft(text);
+        setVoice('ready');
+        await send(text);
+        return;
+      }
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Microphone', 'ORDINA needs the microphone to turn speech into tasks. You can enable it in Settings.');
+        setVoice('error');
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const next = new Audio.Recording();
+      await next.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await next.startAsync();
+      setRecording(next);
+      setVoice('listening');
+    } catch (error: any) {
+      setVoice('error');
+      Alert.alert('Voice', error?.message || 'Voice capture is unavailable on this device.');
+    }
+  }
+
+  const tasks: ProposedTask[] = result?.tasks ?? [];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
@@ -58,53 +125,117 @@ export default function OrdinaAiScreen() {
         <Image source={require('@/assets/images/ordina-logo.png')} style={styles.logo} contentFit="contain" />
         <View style={[styles.pill, { backgroundColor: theme.card }]}>
           <ThemedText style={{ color: theme.primary, fontFamily: 'Poppins_600SemiBold', fontSize: 12 }}>
-            ORDINA AI
+            {voice.toUpperCase()}
           </ThemedText>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.chat} keyboardShouldPersistTaps="handled">
-        {prompt ? <View style={[styles.userBubble, { backgroundColor: theme.card }]}><ThemedText style={styles.bubbleText}>{prompt}</ThemedText></View> : null}
-
-        <View style={styles.aiRow}>
-          <Ionicons name="sparkles" size={16} color={theme.primary} />
-          <ThemedText style={{ color: theme.primary, flex: 1 }}>{answer}</ThemedText>
-        </View>
-
-        {suggestions.length > 0 ? <View style={[styles.proposal, { backgroundColor: theme.card }]}>
-          <ThemedText style={styles.proposalTitle}>Suggested schedule</ThemedText>
-          {suggestions.map((item) => (
-            <View key={item.title} style={styles.proposalItem}>
-              <View style={[styles.bar, { backgroundColor: theme.primary }]} />
-              <View style={{ flex: 1 }}>
-                <ThemedText themeColor="textSecondary" style={styles.meta}>
-                  {item.startTime} · {item.duration}
-                </ThemedText>
-                <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
-              </View>
-            </View>
-          ))}
-          <View style={styles.actions}>
-            <View style={{ flex: 1 }}>
-              <PrimaryButton label="Save Tasks" onPress={() => void confirmSchedule()} />
-            </View>
-            <Pressable style={[styles.edit, { backgroundColor: theme.backgroundElement }]}>
-              <ThemedText>Edit</ThemedText>
-            </Pressable>
+        {history.slice(-8).map((item, index) => (
+          <View
+            key={`${item.role}-${index}`}
+            style={[
+              item.role === 'user' ? styles.userBubble : styles.aiBubble,
+              { backgroundColor: theme.card },
+            ]}>
+            <ThemedText>{item.content}</ThemedText>
           </View>
-        </View> : null}
+        ))}
+
+        {result?.plan ? (
+          <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+            <ThemedText style={styles.proposalTitle}>If you feel overwhelmed</ThemedText>
+            <ThemedText>High priority: {(result.plan.highPriority || []).map((t: any) => t.title).join(', ') || 'None'}</ThemedText>
+            <ThemedText>Can wait: {(result.plan.canWait || []).map((t: any) => t.title).join(', ') || 'None'}</ThemedText>
+          </View>
+        ) : null}
+
+        {result?.recommendation ? (
+          <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+            <ThemedText style={styles.proposalTitle}>Do this now</ThemedText>
+            <ThemedText>{result.recommendation.title}</ThemedText>
+          </View>
+        ) : null}
+
+        {result?.reschedule ? (
+          <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+            <ThemedText style={styles.proposalTitle}>Proposed reschedule</ThemedText>
+            <ThemedText>
+              Move to {result.reschedule.date} {result.reschedule.startTime}
+            </ThemedText>
+            <PrimaryButton label="Confirm reschedule" onPress={() => void confirm()} />
+          </View>
+        ) : null}
+
+        {result?.clarification ? (
+          <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+            <ThemedText style={styles.proposalTitle}>Need a bit more</ThemedText>
+            <ThemedText>{result.clarification}</ThemedText>
+          </View>
+        ) : null}
+
+        {tasks.length > 0 ? (
+          <View style={[styles.proposal, { backgroundColor: theme.card }]}>
+            <ThemedText style={styles.proposalTitle}>Confirm these actions</ThemedText>
+            {tasks.map((item) => (
+              <View key={item.title} style={styles.proposalItem}>
+                <View style={[styles.bar, { backgroundColor: theme.primary }]} />
+                <View style={{ flex: 1 }}>
+                  <ThemedText themeColor="textSecondary">
+                    {item.date} {item.startTime} {item.durationMinutes ? `· ${item.durationMinutes}m` : ''}
+                  </ThemedText>
+                  <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
+                  {item.conflictsWith?.length ? (
+                    <ThemedText style={{ color: theme.warning }}>
+                      Conflicts with {item.conflictsWith.join(', ')}. Proposed {item.startTime}.
+                    </ThemedText>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+            <View style={styles.actions}>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton label="Confirm & save" onPress={() => void confirm()} />
+              </View>
+              <Pressable onPress={() => setResult(null)} style={[styles.edit, { backgroundColor: theme.backgroundElement }]}>
+                <ThemedText>Cancel</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
+
+      <View style={styles.quick}>
+        {['What should I do now?', "I'm overwhelmed", 'Plan my week'].map((label) => (
+          <Pressable key={label} onPress={() => void send(label)} style={[styles.chip, { borderColor: theme.border }]}>
+            <ThemedText style={{ fontSize: 12 }}>{label}</ThemedText>
+          </Pressable>
+        ))}
+      </View>
 
       <View style={[styles.composer, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="Ask ORDINA to change anything..."
+          placeholder="Tell ORDINA what you need..."
           placeholderTextColor={theme.textSecondary}
           style={[styles.input, { color: theme.text }]}
         />
-        <Pressable onPress={() => void askAssistant()} style={[styles.mic, { backgroundColor: theme.primary, opacity: loading ? 0.5 : 1 }]}>
-          <Ionicons name="send" size={18} color={theme.onPrimary} />
+        {attachmentName ? <ThemedText style={{ fontSize: 10, maxWidth: 48 }} numberOfLines={1}>{attachmentName}</ThemedText> : null}
+        <Pressable
+          onPress={() => {
+            void pickTaskImage().then((asset) => {
+              if (asset) setAttachmentName(asset.fileName || 'Selected image');
+            });
+          }}
+          style={[styles.mic, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="image-outline" size={16} color={theme.text} />
+        </Pressable>
+        <Pressable onPress={() => void toggleVoice()} style={[styles.mic, { backgroundColor: theme.secondary }]}>
+          <Ionicons name={voice === 'listening' ? 'stop' : 'mic'} size={18} color="#FFFFFF" />
+        </Pressable>
+        <Pressable onPress={() => void send(draft)} style={[styles.mic, { backgroundColor: theme.primary }]}>
+          <Ionicons name="send" size={16} color="#FFFFFF" />
         </Pressable>
       </View>
     </SafeAreaView>
@@ -113,28 +244,22 @@ export default function OrdinaAiScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   logo: { width: 40, height: 40 },
   pill: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  chat: { padding: 16, gap: 16, paddingBottom: 24 },
+  chat: { padding: 16, gap: 12, paddingBottom: 24 },
   userBubble: { alignSelf: 'flex-end', maxWidth: '88%', borderRadius: 16, padding: 14 },
-  bubbleText: { fontSize: 14, lineHeight: 22 },
-  aiRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  aiBubble: { alignSelf: 'flex-start', maxWidth: '92%', borderRadius: 16, padding: 14 },
   proposal: { borderRadius: 16, padding: 16, gap: 12 },
   proposalTitle: { fontFamily: 'Poppins_600SemiBold', fontSize: 16 },
   proposalItem: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   bar: { width: 4, height: 40, borderRadius: 2 },
-  meta: { fontSize: 12 },
   itemTitle: { fontFamily: 'Poppins_500Medium' },
   actions: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 },
   edit: { borderRadius: Radii.full, paddingHorizontal: 18, paddingVertical: 16 },
+  quick: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16 },
+  chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',

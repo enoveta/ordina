@@ -11,6 +11,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth-store';
+import { routeAfterAuth } from '@/utils/after-auth';
 
 export default function SignInScreen() {
   const theme = useTheme();
@@ -29,7 +30,7 @@ export default function SignInScreen() {
         email: email.trim(),
         password,
       });
-      router.replace(href('/(tabs)'));
+      routeAfterAuth();
     } catch (error: any) {
       Alert.alert('Sign in failed', error?.response?.data?.message ?? 'Unable to reach the server. Check your network connection.');
     }

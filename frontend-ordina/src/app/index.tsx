@@ -4,14 +4,18 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { BrandLockup } from '@/components/brand-lockup';
-
 import { useAuthStore } from '@/store/auth-store';
+import { useLockStore } from '@/store/lock-store';
 
 export default function SplashScreen() {
   const { hydrated, hasSeenOnboarding, isSignedIn } = useAuthStore();
+  const lockHydrated = useLockStore((s) => s.hydrated);
+  const hasPin = useLockStore((s) => s.hasPin);
+  const unlocked = useLockStore((s) => s.unlocked);
+  const remainingMs = useLockStore((s) => s.remainingMs);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !lockHydrated) return;
     const timer = setTimeout(() => {
       if (!hasSeenOnboarding) {
         router.replace(href('/onboarding'));
@@ -21,14 +25,22 @@ export default function SplashScreen() {
         router.replace(href('/sign-in'));
         return;
       }
+      if (!hasPin) {
+        router.replace(href('/create-pin'));
+        return;
+      }
+      if (!unlocked || remainingMs() > 0) {
+        router.replace(href('/lock'));
+        return;
+      }
       router.replace(href('/(tabs)'));
-    }, 1800);
+    }, 1400);
     return () => clearTimeout(timer);
-  }, [hydrated, hasSeenOnboarding, isSignedIn]);
+  }, [hydrated, lockHydrated, hasSeenOnboarding, isSignedIn, hasPin, unlocked, remainingMs]);
 
   return (
     <View style={styles.screen}>
-      <BrandLockup markSize={168} wordmarkSize="lg" onBlack />
+      <BrandLockup markSize={168} wordmarkSize="lg" />
     </View>
   );
 }
@@ -38,6 +50,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#F8FAFC',
   },
 });

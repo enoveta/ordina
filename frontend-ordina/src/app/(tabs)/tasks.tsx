@@ -6,7 +6,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -127,9 +127,13 @@ function SectionHeader({ title }: { title: string }) {
 
 export default function TasksScreen() {
   const theme = useTheme();
-  const { tasks, toggleComplete } = useTasksStore();
+  const { tasks, toggleComplete, loadTasks } = useTasksStore();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
 
   const today = new Date().toISOString().split('T')[0];
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];

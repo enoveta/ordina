@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Appearance, Platform, useColorScheme as useSystemColorScheme } from 'react-native';
+import { Platform, useColorScheme as useSystemColorScheme } from 'react-native';
 
 import { Colors, THEME_PREFERENCE_KEY, type ColorSchemeName, type ThemePreference } from '@/constants/theme';
 
@@ -53,7 +53,7 @@ function resolveScheme(preference: ThemePreference, system: string | null | unde
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useSystemColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
+  const [preference, setPreferenceState] = useState<ThemePreference>('light');
 
   useEffect(() => {
     readPreference().then((stored) => {
@@ -82,11 +82,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function useAppTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    const system = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
     return {
-      preference: 'dark' as ThemePreference,
-      scheme: system === 'dark' ? 'dark' : 'light',
-      colors: Colors.dark,
+      preference: 'light' as ThemePreference,
+      scheme: 'light' as ColorSchemeName,
+      colors: Colors.light,
       setPreference: () => {},
     };
   }

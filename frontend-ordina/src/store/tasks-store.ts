@@ -19,6 +19,9 @@ export interface Task {
   endTime?: string; // "HH:MM"
   duration?: string; // "1h 30m"
   reminder?: boolean;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+  goalId?: string;
+  parentTaskId?: string;
   completed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -52,6 +55,9 @@ function normalizeTask(task: any): Task {
     endTime: task.endTime ?? undefined,
     duration: task.duration ?? '1h',
     reminder: task.reminder ?? false,
+    recurrence: task.recurrence ?? 'none',
+    goalId: task.goalId ? String(task.goalId) : undefined,
+    parentTaskId: task.parentTaskId ? String(task.parentTaskId) : undefined,
     completed: Boolean(task.completed),
     createdAt: task.createdAt ?? new Date().toISOString(),
     updatedAt: task.updatedAt ?? new Date().toISOString(),
@@ -79,7 +85,10 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   updateTask: async (id, updates) => {
-    await api.patch(`/api/tasks/${id}`, updates);
+    await api.patch(`/api/tasks/${id}`, {
+      ...updates,
+      projectId: updates.projectId === undefined ? undefined : updates.projectId || null,
+    });
     await get().loadTasks();
   },
 

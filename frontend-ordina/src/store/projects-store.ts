@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/services/api';
-export type ProjectStatus = 'active' | 'completed' | 'on_hold';
+export type ProjectStatus = 'active' | 'completed' | 'on_hold' | 'archived';
 
 export interface Project {
   id: string;
@@ -13,6 +13,9 @@ export interface Project {
   tasksCompleted: number;
   tasksOverdue: number;
   dueDate?: string;
+  startDate?: string;
+  priority?: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,7 +23,7 @@ export interface Project {
 interface ProjectsState {
   projects: Project[];
   loadProjects: () => Promise<void>;
-  addProject: (project: { name: string; description?: string; color?: string; dueDate?: string }) => Promise<void>;
+  addProject: (project: { name: string; description?: string; color?: string; dueDate?: string; priority?: string }) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 }

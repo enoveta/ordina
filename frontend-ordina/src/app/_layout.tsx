@@ -10,7 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { ThemeProvider, useAppTheme } from '@/providers/theme-provider';
+import { I18nProvider } from '@/providers/i18n-provider';
 import { useAuthStore } from '@/store/auth-store';
+import { useLockStore } from '@/store/lock-store';
 
 function RootStack() {
   const { scheme, colors } = useAppTheme();
@@ -26,6 +28,9 @@ function RootStack() {
         }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="create-pin" />
+        <Stack.Screen name="lock" />
+        <Stack.Screen name="language" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="ai" options={{ animation: 'slide_from_bottom' }} />
@@ -37,6 +42,7 @@ function RootStack() {
         <Stack.Screen name="new-project" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="goals" />
         <Stack.Screen name="reminders" />
+        <Stack.Screen name="integrations" />
       </Stack>
     </NavigationThemeProvider>
   );
@@ -44,6 +50,7 @@ function RootStack() {
 
 export default function RootLayout() {
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydrateLock = useLockStore((s) => s.hydrate);
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
@@ -53,7 +60,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     void hydrate();
-  }, [hydrate]);
+    void hydrateLock();
+  }, [hydrate, hydrateLock]);
 
   if (!fontsLoaded) {
     return null;
@@ -61,7 +69,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootStack />
+      <I18nProvider>
+        <RootStack />
+      </I18nProvider>
     </ThemeProvider>
   );
 }

@@ -11,10 +11,11 @@ import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import type { ThemePreference } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppTheme } from '@/providers/theme-provider';
+import { useI18n } from '@/providers/i18n-provider';
 import { useAuthStore } from '@/store/auth-store';
+import { LOCALES } from '@/i18n/translations';
 
 interface SettingRowProps {
   label: string;
@@ -78,25 +79,21 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-const THEME_LABELS: Record<ThemePreference, string> = {
-  light: 'Light',
-  dark: 'Dark',
-  system: 'System',
-};
-
 export default function ProfileScreen() {
   const theme = useTheme();
+  const { t, locale } = useI18n();
   const { preference, setPreference } = useAppTheme();
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const languageLabel = LOCALES.find((item) => item.id === locale)?.native ?? 'English';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       {/* Top right settings icon */}
       <View style={styles.topBar}>
-        <ThemedText style={styles.screenTitle}>Profile & Settings</ThemedText>
-        <Pressable hitSlop={8}>
-          <Ionicons name="settings-outline" size={22} color={theme.text} />
+        <ThemedText style={styles.screenTitle}>{t('profile.title')}</ThemedText>
+        <Pressable hitSlop={8} onPress={() => router.push(href('/language'))}>
+          <Ionicons name="language-outline" size={22} color={theme.text} />
         </Pressable>
       </View>
 
@@ -107,12 +104,14 @@ export default function ProfileScreen() {
         {/* User card */}
         <View style={[styles.userCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-            <ThemedText style={styles.avatarText}>S</ThemedText>
+            <ThemedText style={styles.avatarText}>
+              {(user?.name ?? 'O').slice(0, 1).toUpperCase()}
+            </ThemedText>
           </View>
           <View style={{ flex: 1 }}>
-            <ThemedText style={styles.userName}>{user?.name ?? 'Sarah Mitchell'}</ThemedText>
+            <ThemedText style={styles.userName}>{user?.name ?? t('profile.guest')}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.userEmail}>
-              {user?.email ?? 'sarah.m@ordina-ai.com'}
+              {user?.email ?? t('profile.signInHint')}
             </ThemedText>
             <Pressable>
               <ThemedText style={[styles.editProfile, { color: theme.primary }]}>
@@ -124,25 +123,36 @@ export default function ProfileScreen() {
 
         {/* Preferences */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <SectionLabel title="PREFERENCES" />
+          <SectionLabel title={t('profile.preferences')} />
           <View style={styles.themeRow}>
-            <ThemedText style={styles.settingLabel}>Theme</ThemedText>
+            <ThemedText style={styles.settingLabel}>{t('profile.theme')}</ThemedText>
             <View style={[styles.themeOptions, { backgroundColor: theme.backgroundElement }]}>
-              {(['light', 'dark', 'system'] as ThemePreference[]).map((option) => (
+              {(
+                [
+                  { id: 'light' as const, icon: 'sunny-outline' as const, label: t('profile.light') },
+                  { id: 'dark' as const, icon: 'moon-outline' as const, label: t('profile.dark') },
+                  { id: 'system' as const, icon: 'phone-portrait-outline' as const, label: t('profile.system') },
+                ]
+              ).map((option) => (
                 <Pressable
-                  key={option}
-                  onPress={() => setPreference(option)}
-                  style={[styles.themeOption, preference === option && { backgroundColor: theme.primary }]}
+                  key={option.id}
+                  onPress={() => setPreference(option.id)}
+                  style={[styles.themeOption, preference === option.id && { backgroundColor: theme.primary }]}
                 >
-                  <ThemedText style={{ color: preference === option ? theme.onPrimary : theme.textSecondary, fontSize: 12 }}>
-                    {THEME_LABELS[option]}
+                  <Ionicons
+                    name={option.icon}
+                    size={16}
+                    color={preference === option.id ? theme.onPrimary : theme.textSecondary}
+                  />
+                  <ThemedText style={{ color: preference === option.id ? theme.onPrimary : theme.textSecondary, fontSize: 12 }}>
+                    {option.label}
                   </ThemedText>
                 </Pressable>
               ))}
             </View>
           </View>
-          <SettingRow label="Default View" value="Calendar" />
-          <SettingRow label="Start of Week" value="Monday" showChevron />
+          <SettingRow label={t('profile.language')} value={languageLabel} onPress={() => router.push(href('/language'))} />
+          <SettingRow label={t('profile.appLock')} onPress={() => router.push(href('/create-pin'))} />
         </View>
 
         {/* AI Settings */}
@@ -172,7 +182,7 @@ export default function ProfileScreen() {
               void signOut().then(() => router.replace(href('/sign-in')));
             }}
             style={[styles.settingRow, { borderBottomColor: theme.border }]}>
-            <ThemedText style={[styles.settingLabel, { color: theme.danger }]}>Sign Out</ThemedText>
+            <ThemedText style={[styles.settingLabel, { color: theme.danger }]}>{t('profile.signOut')}</ThemedText>
           </Pressable>
         </View>
 
@@ -188,6 +198,11 @@ export default function ProfileScreen() {
         <Pressable onPress={() => router.push(href('/goals'))} style={[styles.notifLink, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="flag-outline" size={20} color={theme.primary} />
           <ThemedText style={styles.notifLinkText}>Manage Goals</ThemedText>
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+        </Pressable>
+        <Pressable onPress={() => router.push(href('/integrations'))} style={[styles.notifLink, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Ionicons name="phone-portrait-outline" size={20} color={theme.primary} />
+          <ThemedText style={styles.notifLinkText}>Phone integrations</ThemedText>
           <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
         </Pressable>
         <Pressable onPress={() => router.push(href('/reminders'))} style={[styles.notifLink, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -276,5 +291,5 @@ const styles = StyleSheet.create({
   version: { fontSize: 12, textAlign: 'center', paddingBottom: 8 },
   themeRow: { gap: 10, paddingVertical: 12 },
   themeOptions: { flexDirection: 'row', borderRadius: 10, padding: 3, gap: 3 },
-  themeOption: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  themeOption: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
 });
