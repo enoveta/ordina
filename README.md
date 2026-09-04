@@ -60,7 +60,8 @@ See `backend-ordina/.env.example`.
 | `DATABASE_URL` | Prisma SQLite file, default `file:./data/ordina.sqlite` |
 | `PORT` | API port, default `4000` |
 | `JWT_SECRET` | Required for Phase 2 auth. Never commit a real secret. |
-| `OPENAI_API_KEY` | Backend-only AI key. Required from Phase 6. Leave empty until then. |
+| `GEMINI_API_KEY` | Backend-only Google Gemini API key. Required for full AI and voice features. |
+Configure `GEMINI_API_KEY` in `backend-ordina/.env` for full AI and voice features. The mobile app only talks to `/api/...`.
 | `CORS_ORIGIN` | Browser origin allowlist |
 
 Do not put AI keys in the React Native app.
@@ -114,7 +115,7 @@ Auth, tasks, projects, goals, AI, and analytics routes will be added in later ph
 
 ## AI integration
 
-ORDINA AI is called from the **backend**. Configure `OPENAI_API_KEY` in `backend-ordina/.env` when Phase 6 starts. The mobile app only talks to `/api/...`.
+ORDINA AI is called from the **backend**. Configure `GEMINI_API_KEY` in `backend-ordina/.env` for full AI and voice features. The mobile app only talks to `/api/...`.
 
 ## Testing
 

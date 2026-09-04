@@ -1,19 +1,37 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 let asked = false;
+let handlerConfigured = false;
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type NotificationsModule = typeof import('expo-notifications');
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  // Notifications are deferred until the native development build is ready.
+  if (Platform.OS === 'android' && Constants.appOwnership === 'expo') return null;
+  try {
+    const notifications = await import('expo-notifications');
+    if (!handlerConfigured) {
+      notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+      handlerConfigured = true;
+    }
+    return notifications;
+  } catch {
+    return null;
+  }
+}
 
 export async function getNotificationPermission() {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return 'unavailable';
   const current = await Notifications.getPermissionsAsync();
   if (current.granted || current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
     return 'granted';
@@ -22,6 +40,8 @@ export async function getNotificationPermission() {
 }
 
 export async function ensureNotificationPermission() {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return 'unavailable';
   const current = await Notifications.getPermissionsAsync();
   if (current.granted || current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
     return 'granted';
@@ -34,6 +54,8 @@ export async function ensureNotificationPermission() {
 }
 
 export async function scheduleLocalReminder(title: string, body: string, when: Date, data?: Record<string, string>) {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return null;
   const permission = await ensureNotificationPermission();
   if (permission !== 'granted') return null;
   if (when.getTime() <= Date.now()) return null;

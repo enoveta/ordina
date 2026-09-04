@@ -17,33 +17,29 @@ Rules:
 - Never invent other users' data.
 - If the request is unclear, intent=clarify.`;
 
-async function callOpenAi(messages) {
-  const key = process.env.OPENAI_API_KEY;
+async function callGemini(contents, responseMimeType = 'application/json') {
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    const error = new Error('ORDINA AI is not configured. Set OPENAI_API_KEY in backend-ordina/.env');
+    const error = new Error('ORDINA AI is not configured. Set GEMINI_API_KEY in backend-ordina/.env');
     error.status = 503;
     throw error;
   }
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages,
+      contents,
+      generationConfig: { temperature: 0.2, responseMimeType },
     }),
   });
   if (!response.ok) {
-    const error = new Error('ORDINA AI could not complete that request');
+    const error = new Error('ORDINA AI could not complete that Gemini request');
     error.status = 502;
     throw error;
   }
   const payload = await response.json();
-  const text = payload.choices?.[0]?.message?.content || '{}';
+  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '{}';
   try {
     return JSON.parse(text);
   } catch {
@@ -51,6 +47,69 @@ async function callOpenAi(messages) {
     error.status = 502;
     throw error;
   }
+}
+
+function localTaskFromInstruction(message) {
+  const text = String(message || '').trim();
+  const lower = text.toLowerCase();
+  const today = new Date();
+  const date = lower.includes('tomorrow') ? toDateKey(new Date(today.getTime() + 86400000)) : toDateKey(today);
+  const timeMatch = lower.match(/(?:at|around)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  let startTime;
+  if (timeMatch) {
+    let hour = Number(timeMatch[1]);
+    const minute = timeMatch[2] || '00';
+    const period = timeMatch[3]?.toLowerCase();
+    if (period === 'pm' && hour < 12) hour += 12;
+    if (period === 'am' && hour === 12) hour = 0;
+    startTime = `${String(hour).padStart(2, '0')}:${minute}`;
+  }
+  const durationMatch = lower.match(/(?:for|of)\s+(\d+)\s*(hour|hours|hr|hrs|minute|minutes|min|mins)/i);
+  const durationMinutesValue = durationMatch
+    ? /hour|hr/i.test(durationMatch[2]) ? Number(durationMatch[1]) * 60 : Number(durationMatch[1])
+    : 60;
+  const priority = lower.includes('high priority') || lower.includes('urgent') ? 'high' : lower.includes('low priority') ? 'low' : 'medium';
+  const title = text
+    .replace(/\b(please|remind me to|remind me|create a task to|create task to|add a task to|schedule|tomorrow|today|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?|for\s+\d+\s*(?:hours?|hrs?|minutes?|mins?))\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[,.:;\s]+|[,.:;\s]+$/g, '') || text;
+  return { title: title.charAt(0).toUpperCase() + title.slice(1), date, startTime, durationMinutes: durationMinutesValue, priority, reminder: lower.includes('remind') };
+}
+
+function localInterpret(message, existingTasks) {
+  const lower = String(message || '').toLowerCase();
+  if (/\b(plan|organize)\s+(my|the)\s+week\b/.test(lower)) {
+    const open = (existingTasks || []).filter((task) => !task.completed && task.status !== 'archived').slice(0, 7);
+    return {
+      intent: 'create_tasks',
+      message: open.length
+        ? `I found ${open.length} open task${open.length === 1 ? '' : 's'} to organize. Review the proposed schedule before saving.`
+        : 'You have no open tasks to organize this week. Tell me what you want to plan.',
+      tasks: open.map((task, index) => ({
+        title: task.title,
+        description: task.description || '',
+        date: task.dueDate || toDateKey(new Date(Date.now() + (index + 1) * 86400000)),
+        startTime: task.startTime || findOpenSlot(existingTasks || [], task.dueDate || toDateKey(new Date(Date.now() + (index + 1) * 86400000)), durationMinutes(task.duration)),
+        durationMinutes: durationMinutes(task.duration),
+        priority: typeof task.priority === 'number' ? (task.priority >= 3 ? 'high' : task.priority === 2 ? 'medium' : 'low') : task.priority || 'medium',
+        reminder: Boolean(task.reminder),
+      })),
+    };
+  }
+  if (/\b(hello|hi|help|what can you do|capabilities)\b/.test(lower)) {
+    return {
+      intent: 'clarify',
+      message: 'I can create tasks, organize your week, find your next priority, explain an overwhelmed plan, and suggest a new time when tasks conflict.',
+      tasks: [],
+      clarification: 'Tell me the activity, date, time, duration, or priority you want to organize.',
+    };
+  }
+  const task = localTaskFromInstruction(message);
+  return applyScheduleGuards({
+    intent: 'create_tasks',
+    message: `I understood your request as “${task.title}”${task.date ? ` for ${task.date}` : ''}${task.startTime ? ` at ${task.startTime}` : ''}. Review it before saving.`,
+    tasks: [task],
+  }, existingTasks || []);
 }
 
 function applyScheduleGuards(parsed, existing) {
@@ -117,17 +176,17 @@ async function interpret({ message, timezone, existingTasks, contacts }) {
       tasks: [],
     };
   }
-  const parsed = await callOpenAi([
-    { role: 'system', content: SYSTEM_PROMPT },
+  if (!process.env.GEMINI_API_KEY) return localInterpret(message, existingTasks);
+  const parsed = await callGemini([
     {
       role: 'user',
-      content: JSON.stringify({
+      parts: [{ text: `${SYSTEM_PROMPT}\n\n${JSON.stringify({
         today,
         timezone: timezone || 'UTC',
         instruction: message,
         existingTasks: (existingTasks || []).slice(0, 80),
         matchingContacts: (contacts || []).slice(0, 8),
-      }),
+      })}` }],
     },
   ]);
 
@@ -153,9 +212,9 @@ async function interpret({ message, timezone, existingTasks, contacts }) {
 }
 
 async function transcribe(base64Audio, mimeType) {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    const error = new Error('ORDINA AI is not configured. Set OPENAI_API_KEY in backend-ordina/.env');
+    const error = new Error('ORDINA voice AI is not configured. Set GEMINI_API_KEY in backend-ordina/.env');
     error.status = 503;
     throw error;
   }
@@ -164,23 +223,26 @@ async function transcribe(base64Audio, mimeType) {
     error.status = 400;
     throw error;
   }
-  const buffer = Buffer.from(base64Audio, 'base64');
-  const form = new FormData();
-  const blob = new Blob([buffer], { type: mimeType || 'audio/m4a' });
-  form.append('file', blob, 'speech.m4a');
-  form.append('model', 'whisper-1');
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || 'gemini-2.0-flash'}:generateContent?key=${encodeURIComponent(key)}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${key}` },
-    body: form,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: 'Transcribe this audio exactly. Return only the spoken words.' },
+          { inlineData: { mimeType: mimeType || 'audio/m4a', data: base64Audio } },
+        ],
+      }],
+    }),
   });
   if (!response.ok) {
-    const error = new Error('Speech could not be transcribed');
+    const error = new Error('Speech could not be transcribed by Gemini');
     error.status = 502;
     throw error;
   }
   const payload = await response.json();
-  return String(payload.text || '').trim();
+  return String(payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '').trim();
 }
 
 module.exports = { interpret, transcribe, durationMinutes };

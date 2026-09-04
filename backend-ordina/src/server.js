@@ -74,6 +74,9 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'Email already registered.' });
+    }
     return res.status(500).json({ message: 'Unable to register user.', error: error.message });
   }
 });

@@ -1,13 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuthStore } from '@/store/auth-store';
 import { useProjectsStore } from '@/store/projects-store';
 import { useTasksStore, type Category, type Priority } from '@/store/tasks-store';
 import { scheduleLocalReminder } from '@/services/notifications';
@@ -17,6 +18,7 @@ const RECURRENCE = ['none', 'daily', 'weekly', 'monthly', 'custom'] as const;
 
 export default function NewTaskScreen() {
   const theme = useTheme();
+  const isSignedIn = useAuthStore((s) => s.isSignedIn);
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const addTask = useTasksStore((s) => s.addTask);
   const updateTask = useTasksStore((s) => s.updateTask);
@@ -63,6 +65,13 @@ export default function NewTaskScreen() {
 
   async function saveTask() {
     if (!title.trim()) return;
+    if (!isSignedIn) {
+      Alert.alert('Sign in required', 'Please sign in before creating a task.', [
+        { text: 'Sign in', onPress: () => router.replace('/sign-in') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
     const basePayload = {
       title: title.trim(),
       description,
@@ -78,10 +87,22 @@ export default function NewTaskScreen() {
       completed: taskToEdit?.completed ?? false,
     };
 
-    if (taskToEdit) {
-      await updateTask(taskToEdit.id, basePayload);
-    } else {
-      await addTask(basePayload);
+    try {
+      if (taskToEdit) {
+        await updateTask(taskToEdit.id, basePayload);
+      } else {
+        await addTask(basePayload);
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        Alert.alert('Session expired', 'Please sign in again before saving this task.', [
+          { text: 'Sign in', onPress: () => router.replace('/sign-in') },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+        return;
+      }
+      Alert.alert('Task', error?.response?.data?.message || error?.message || 'Unable to save the task.');
+      return;
     }
 
     if (reminder && dueDate) {

@@ -81,11 +81,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     let user: AuthUser | null = null;
     if (session) {
       try {
-        user = JSON.parse(session) as AuthUser;
+        const parsed = JSON.parse(session) as AuthUser;
+        user = parsed?.token ? parsed : null;
       } catch {
         user = null;
       }
     }
+    if (!user && session) await write(KEYS.session, null);
     set({
       hydrated: true,
       hasSeenOnboarding: onboarding === '1',

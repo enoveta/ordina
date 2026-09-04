@@ -1,15 +1,17 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuthStore } from '@/store/auth-store';
 import { useProjectsStore } from '@/store/projects-store';
 
 export default function NewProjectScreen() {
   const theme = useTheme();
+  const isSignedIn = useAuthStore((state) => state.isSignedIn);
   const addProject = useProjectsStore((state) => state.addProject);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -18,7 +20,26 @@ export default function NewProjectScreen() {
 
   async function save() {
     if (!name.trim()) return;
-    await addProject({ name: name.trim(), description, dueDate: dueDate || undefined, priority });
+    if (!isSignedIn) {
+      Alert.alert('Sign in required', 'Please sign in before creating a project.', [
+        { text: 'Sign in', onPress: () => router.replace('/sign-in') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
+    try {
+      await addProject({ name: name.trim(), description, dueDate: dueDate || undefined, priority });
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        Alert.alert('Session expired', 'Please sign in again before saving this project.', [
+          { text: 'Sign in', onPress: () => router.replace('/sign-in') },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+        return;
+      }
+      Alert.alert('Project', error?.response?.data?.message || error?.message || 'Unable to save the project.');
+      return;
+    }
     router.back();
   }
 

@@ -1,10 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -30,6 +29,11 @@ type ProposedTask = {
   suggestedStartTime?: string;
 };
 
+type Recording = {
+  stopAndUnloadAsync: () => Promise<unknown>;
+  getURI: () => string | null;
+};
+
 export default function OrdinaAiScreen() {
   const theme = useTheme();
   const loadTasks = useTasksStore((s) => s.loadTasks);
@@ -37,7 +41,7 @@ export default function OrdinaAiScreen() {
   const [history, setHistory] = useState<{ role: string; content: string }[]>([]);
   const [result, setResult] = useState<any>(null);
   const [voice, setVoice] = useState<VoiceState>('ready');
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<Recording | null>(null);
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +84,11 @@ export default function OrdinaAiScreen() {
 
   async function toggleVoice() {
     try {
+      // Native audio is deferred until the Android development build is ready.
+      if (Platform.OS === 'web' || Platform.OS === 'android') {
+        Alert.alert('Voice', 'Voice capture will be enabled in the Android development build. Use the text box for now.');
+        return;
+      }
       if (recording) {
         setVoice('processing');
         await recording.stopAndUnloadAsync();
@@ -91,11 +100,17 @@ export default function OrdinaAiScreen() {
         }
         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
         const text = await transcribeAudio(base64, 'audio/m4a');
+        if (!text.trim()) {
+          setVoice('error');
+          Alert.alert('Voice', 'I could not hear any words. Please try speaking again.');
+          return;
+        }
         setDraft(text);
         setVoice('ready');
         await send(text);
         return;
       }
+      const { Audio } = await import('expo-av');
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
         Alert.alert('Microphone', 'ORDINA needs the microphone to turn speech into tasks. You can enable it in Settings.');
