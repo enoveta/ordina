@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 let asked = false;
@@ -69,4 +69,25 @@ export async function scheduleLocalReminder(title: string, body: string, when: D
     content: { title, body, data },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
   });
+}
+
+export async function presentImmediateNotification(title: string, body: string) {
+  const Notifications = await loadNotifications();
+  if (Notifications) {
+    const permission = await ensureNotificationPermission();
+    if (permission === 'granted') {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('ordina-reminders', {
+          name: 'ORDINA reminders',
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
+      return Notifications.scheduleNotificationAsync({
+        content: { title, body },
+        trigger: null,
+      });
+    }
+  }
+  Alert.alert(title, body);
+  return null;
 }

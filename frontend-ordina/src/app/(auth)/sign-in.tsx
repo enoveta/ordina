@@ -1,5 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { href } from '@/utils/href';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -8,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthField } from '@/components/auth-field';
 import { BrandLockup } from '@/components/brand-lockup';
 import { PrimaryButton } from '@/components/primary-button';
+import { SocialAuthButtons } from '@/components/social-auth-buttons';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth-store';
@@ -83,24 +83,7 @@ export default function SignInScreen() {
             <View style={[styles.line, { backgroundColor: theme.border }]} />
           </View>
 
-          <View style={styles.socialRow}>
-            <Pressable
-              style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() =>
-                Alert.alert('Google', 'Google sign-in is not configured yet. Please use email sign-in.')
-              }>
-              <Ionicons name="logo-google" size={18} color={theme.text} />
-              <ThemedText style={styles.socialLabel}>Google</ThemedText>
-            </Pressable>
-            <Pressable
-              style={[styles.social, { backgroundColor: theme.card, borderColor: theme.border }]}
-              onPress={() =>
-                Alert.alert('Apple', 'Apple sign-in is not configured yet. Please use email sign-in.')
-              }>
-              <Ionicons name="logo-apple" size={20} color={theme.text} />
-              <ThemedText style={styles.socialLabel}>Apple</ThemedText>
-            </Pressable>
-          </View>
+          <SocialAuthButtons />
 
           <View style={styles.footer}>
             <ThemedText themeColor="textSecondary">Don&apos;t have an account? </ThemedText>
@@ -131,18 +114,6 @@ const styles = StyleSheet.create({
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   line: { flex: 1, height: 1 },
   or: { fontSize: 12 },
-  socialRow: { flexDirection: 'row', gap: 12 },
-  social: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  socialLabel: { fontFamily: 'Poppins_500Medium' },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

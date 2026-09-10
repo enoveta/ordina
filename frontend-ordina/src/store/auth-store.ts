@@ -51,6 +51,9 @@ type AuthState = {
   completeOnboarding: () => Promise<void>;
   signIn: (credentials: { email: string; password: string }) => Promise<void>;
   signUp: (payload: { name: string; email: string; password: string }) => Promise<void>;
+  applySession: (data: unknown) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
+  signInWithApple: (payload: { identityToken: string; fullName?: { givenName?: string | null; familyName?: string | null } | null }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -102,8 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ hasSeenOnboarding: true });
   },
 
-  signIn: async ({ email, password }) => {
-    const { data } = await api.post('/api/auth/login', { email, password });
+  applySession: async (data) => {
     const user = sessionFrom(data);
     await write(KEYS.session, JSON.stringify(user));
     await write(KEYS.onboarding, '1');
@@ -111,14 +113,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isSignedIn: true, user, hasSeenOnboarding: true });
   },
 
+  signIn: async ({ email, password }) => {
+    const { data } = await api.post('/api/auth/login', { email, password });
+    await useAuthStore.getState().applySession(data);
+  },
+
   signUp: async ({ name, email, password }) => {
     const { data } = await api.post('/api/auth/register', { name, email, password });
     const user = sessionFrom(data);
     if (!user.name) user.name = name;
-    await write(KEYS.session, JSON.stringify(user));
-    await write(KEYS.onboarding, '1');
-    setAuthToken(user.token);
-    set({ isSignedIn: true, user, hasSeenOnboarding: true });
+    await useAuthStore.getState().applySession({ ...data, user });
+  },
+
+  signInWithGoogle: async (idToken) => {
+    const { data } = await api.post('/api/auth/google', { idToken });
+    await useAuthStore.getState().applySession(data);
+  },
+
+  signInWithApple: async (payload) => {
+    const { data } = await api.post('/api/auth/apple', payload);
+    await useAuthStore.getState().applySession(data);
   },
 
   signOut: async () => {

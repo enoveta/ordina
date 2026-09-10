@@ -3,14 +3,16 @@ const { detectConflicts, findOpenSlot, recommendNow, overwhelmPlan, durationMinu
 const SYSTEM_PROMPT = `You are ORDINA, an action-oriented personal productivity assistant.
 Return ONLY valid JSON with this shape:
 {
-  "intent": "create_tasks" | "reschedule" | "recommend_now" | "overwhelm" | "clarify" | "conflict",
+  "intent": "create_tasks" | "reschedule" | "recommend_now" | "overwhelm" | "clarify" | "conflict" | "arrival_reminder",
   "message": "short user-facing summary",
   "tasks": [{ "title": "", "description": "", "date": "YYYY-MM-DD", "startTime": "HH:MM", "durationMinutes": 60, "priority": "low|medium|high", "reminder": false, "projectName": "", "category": "work|personal|health|learning" }],
+  "arrivalReminders": [{ "title": "", "placeName": "home|work|named place" }],
   "reschedule": { "taskId": "", "titleHint": "", "date": "YYYY-MM-DD", "startTime": "HH:MM" },
   "clarification": ""
 }
 Rules:
 - Extract EVERY activity in the instruction as a separate task.
+- If the user asks to be reminded when they arrive/get to a place, use intent arrival_reminder and fill arrivalReminders. Do not invent coordinates.
 - Resolve relative dates using today and timezone.
 - If a requested time conflicts with existingTasks, set intent to conflict and propose a different startTime.
 - For reschedule, identify the best matching existing task id from existingTasks.
@@ -207,6 +209,23 @@ function localInterpret(message, existingTasks, timeZone) {
   const reschedule = localReschedule(message, existingTasks, now, timeZone);
   if (reschedule) return reschedule;
 
+  if (/\b(when i arrive|when i get to|when i get home|when i get to work|remind me when i arrive|remind me when i get)\b/.test(lower)) {
+    let placeName = 'saved place';
+    const atMatch = lower.match(/\b(?:arrive(?:\s+at)?|get to|get)\s+(?:at\s+)?(.+)$/);
+    if (/\bhome\b/.test(lower)) placeName = 'home';
+    else if (/\bwork\b/.test(lower) || /\boffice\b/.test(lower)) placeName = 'work';
+    else if (atMatch?.[1]) {
+      placeName = atMatch[1].replace(/[.!?].*$/, '').replace(/\b(please|tomorrow|today)\b/g, '').trim() || placeName;
+    }
+    const title = `When you arrive at ${placeName}`;
+    return {
+      intent: 'arrival_reminder',
+      message: `I will remind you when you arrive at ${placeName}. Save that place in Integrations if you have not already, then confirm.`,
+      tasks: [],
+      arrivalReminders: [{ title, placeName }],
+    };
+  }
+
   const sharedDate = resolveDate(message, now, timeZone);
   const parts = splitActivities(message);
   const tasks = (parts.length ? parts : [message]).map((part) => {
@@ -337,6 +356,27 @@ async function interpret({ message, timezone, existingTasks, contacts }) {
   }
 }
 
+async function interpretImage({ image, mimeType, timezone, existingTasks }) {
+  const today = toDateKey(new Date(), timezone);
+  const parsed = await callGemini([
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `${SYSTEM_PROMPT}\n\nExtract tasks from this photo (whiteboard, screenshot, handwritten list, or note). Today is ${today} in ${timezone || 'UTC'}.`,
+        },
+        { inlineData: { mimeType: mimeType || 'image/jpeg', data: image } },
+      ],
+    },
+  ]);
+  if (!parsed.tasks?.length && parsed.intent !== 'clarify') {
+    parsed.intent = parsed.intent || 'create_tasks';
+    parsed.message = parsed.message || 'I could not find tasks in that image. Try a clearer photo of a list.';
+    parsed.tasks = parsed.tasks || [];
+  }
+  return applyScheduleGuards(parsed, existingTasks || []);
+}
+
 async function transcribe(base64Audio, mimeType) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
@@ -371,4 +411,4 @@ async function transcribe(base64Audio, mimeType) {
   return String(payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '').trim();
 }
 
-module.exports = { interpret, transcribe, durationMinutes, localInterpret };
+module.exports = { interpret, interpretImage, transcribe, durationMinutes, localInterpret };

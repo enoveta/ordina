@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { api } from '@/services/api';
 import { getNotificationPermission, ensureNotificationPermission } from '@/services/notifications';
 
 type Row = { id: string; label: string; why: string; state: string; request: () => Promise<void> };
@@ -37,6 +38,26 @@ export default function IntegrationsScreen() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  async function savePlace(name: string) {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Location', 'Allow location so ORDINA can save this place.');
+      return;
+    }
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    try {
+      await api.post('/api/places', {
+        name,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        radiusMeters: 150,
+      });
+      Alert.alert('Place saved', `${name} is saved. Ask ORDINA: “Remind me when I arrive at ${name.toLowerCase()}”.`);
+    } catch (error: any) {
+      Alert.alert('Place', error?.response?.data?.message || 'Could not save that place. Sign in and try again.');
+    }
+  }
 
   const rows: Row[] = [
     {
@@ -82,7 +103,7 @@ export default function IntegrationsScreen() {
     {
       id: 'location',
       label: 'Location',
-      why: 'Only if you create a reminder like “when I arrive at work”. Denied access is ignored safely.',
+      why: 'Only while the app is open: arrival reminders like “when I arrive at work”. Background geofences need a native build.',
       state: states.location || 'undetermined',
       request: async () => {
         await Location.requestForegroundPermissionsAsync();
@@ -92,7 +113,7 @@ export default function IntegrationsScreen() {
     {
       id: 'camera',
       label: 'Camera / files',
-      why: 'Pick or capture an image for a later image-to-task flow.',
+      why: 'Send a photo of a list or whiteboard so ORDINA can propose tasks. Confirm before anything is saved.',
       state: states.camera || 'undetermined',
       request: async () => {
         await ImagePicker.requestCameraPermissionsAsync();
@@ -126,6 +147,22 @@ export default function IntegrationsScreen() {
             <ThemedText style={{ color: theme.primary, textTransform: 'capitalize' }}>{row.state}</ThemedText>
           </Pressable>
         ))}
+        <Pressable
+          onPress={() => void savePlace('Home')}
+          style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.label}>Save current location as Home</ThemedText>
+            <ThemedText themeColor="textSecondary">Used for “remind me when I arrive at home”.</ThemedText>
+          </View>
+        </Pressable>
+        <Pressable
+          onPress={() => void savePlace('Work')}
+          style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={{ flex: 1 }}>
+            <ThemedText style={styles.label}>Save current location as Work</ThemedText>
+            <ThemedText themeColor="textSecondary">Used for “remind me when I arrive at work”.</ThemedText>
+          </View>
+        </Pressable>
         <Pressable onPress={() => void Linking.openSettings()}>
           <ThemedText style={{ color: theme.primary, textAlign: 'center' }}>Open system settings</ThemedText>
         </Pressable>

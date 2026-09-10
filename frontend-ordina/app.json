@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/ordina-logo.png",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.ordina.app",
@@ -66,7 +67,8 @@
           "locationWhenInUsePermission": "ORDINA uses location only for arrival reminders you choose to create."
         }
       ],
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

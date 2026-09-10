@@ -6,6 +6,9 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const prisma = require('./lib/prisma');
 const { signToken, requireUser } = require('./lib/auth');
+const { ensureSchema } = require('./lib/ensure-schema');
+const { sendMail } = require('./lib/mail');
+const { upsertOAuthUser, verifyGoogleIdToken, verifyAppleIdentityToken } = require('./lib/oauth');
 const ai = require('./lib/ai');
 const schedule = require('./lib/schedule');
 
@@ -30,7 +33,18 @@ app.use(rateLimit({
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ ok: true, service: 'ordina-backend', db: 'sqlite', timestamp: new Date().toISOString() });
+    res.json({
+      ok: true,
+      service: 'ordina-backend',
+      db: 'sqlite',
+      timestamp: new Date().toISOString(),
+      features: {
+        gemini: Boolean(process.env.GEMINI_API_KEY),
+        googleAuth: Boolean(process.env.GOOGLE_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID),
+        appleAuth: Boolean(process.env.APPLE_CLIENT_ID || process.env.APPLE_BUNDLE_ID),
+        smtp: Boolean(process.env.SMTP_HOST),
+      },
+    });
   } catch (error) {
     res.status(500).json({ ok: false, message: 'Database unavailable', error: error.message });
   }
@@ -111,6 +125,101 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Unable to sign in.', error: error.message });
+  }
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const idToken = String(req.body?.idToken || req.body?.id_token || '').trim();
+    if (!idToken) return res.status(400).json({ message: 'Google idToken is required.' });
+    const identity = await verifyGoogleIdToken(idToken);
+    return res.json(await upsertOAuthUser(identity));
+  } catch (error) {
+    return res.status(error.status || 500).json({ message: error.message || 'Google sign-in failed.' });
+  }
+});
+
+app.post('/api/auth/apple', async (req, res) => {
+  try {
+    const identityToken = String(req.body?.identityToken || req.body?.idToken || '').trim();
+    if (!identityToken) return res.status(400).json({ message: 'Apple identityToken is required.' });
+    const identity = await verifyAppleIdentityToken(identityToken);
+    if (req.body?.fullName) {
+      const parts = [req.body.fullName.givenName, req.body.fullName.familyName].filter(Boolean);
+      if (parts.length) identity.name = parts.join(' ');
+    }
+    return res.json(await upsertOAuthUser(identity));
+  } catch (error) {
+    return res.status(error.status || 500).json({ message: error.message || 'Apple sign-in failed.' });
+  }
+});
+
+app.post('/api/auth/forgot', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ message: 'Email is required.' });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.json({ emailed: Boolean(process.env.SMTP_HOST), message: 'If that account exists, a reset code was issued.' });
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await prisma.passwordReset.updateMany({ where: { userId: user.id, used: false }, data: { used: true } });
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        codeHash: await require('argon2').hash(code),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+    const mailed = await sendMail({
+      to: email,
+      subject: 'ORDINA password reset code',
+      text: `Your ORDINA reset code is ${code}. It expires in 15 minutes.`,
+    });
+    if (!mailed.sent) {
+      return res.json({
+        emailed: false,
+        code,
+        message: 'Email delivery is not configured (SMTP_HOST missing). Use this 6-digit code now to set a new password.',
+      });
+    }
+    return res.json({ emailed: true, message: 'A reset code was sent to your email.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Unable to start password reset.', error: error.message });
+  }
+});
+
+app.post('/api/auth/reset', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const code = String(req.body?.code || '').trim();
+    const newPassword = String(req.body?.newPassword || req.body?.password || '');
+    if (!email || !code || newPassword.length < 8) {
+      return res.status(400).json({ message: 'Email, 6-digit code, and a new password (8+ characters) are required.' });
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(400).json({ message: 'Invalid reset code.' });
+    const resets = await prisma.passwordReset.findMany({
+      where: { userId: user.id, used: false, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    let matched = null;
+    for (const reset of resets) {
+      if (await require('argon2').verify(reset.codeHash, code)) {
+        matched = reset;
+        break;
+      }
+    }
+    if (!matched) return res.status(400).json({ message: 'Invalid or expired reset code.' });
+    await prisma.passwordReset.update({ where: { id: matched.id }, data: { used: true } });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await require('argon2').hash(newPassword) },
+    });
+    return res.json({ ok: true, message: 'Password updated. You can sign in with the new password.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Unable to reset password.', error: error.message });
   }
 });
 
@@ -243,15 +352,37 @@ app.post('/api/reminders', async (req, res) => {
   const userId = requireUser(req, res);
   if (!userId) return;
   try {
-    const data = pickFields(req.body ?? {}, ['title', 'remindAt', 'enabled', 'status', 'taskId', 'projectId', 'goalId']);
-    if (!data.title || !data.remindAt) return res.status(400).json({ message: 'Title and reminder date/time are required.' });
-    const remindAt = new Date(data.remindAt);
-    if (Number.isNaN(remindAt.getTime())) return res.status(400).json({ message: 'Invalid reminder date/time.' });
+    const data = pickFields(req.body ?? {}, ['title', 'remindAt', 'enabled', 'status', 'taskId', 'projectId', 'goalId', 'kind', 'latitude', 'longitude', 'radiusMeters', 'placeName', 'placeId']);
+    const kind = data.kind === 'arrival' ? 'arrival' : 'time';
+    let latitude = data.latitude == null ? null : Number(data.latitude);
+    let longitude = data.longitude == null ? null : Number(data.longitude);
+    let radiusMeters = data.radiusMeters == null ? null : Number(data.radiusMeters);
+    let placeName = data.placeName ? String(data.placeName) : null;
+    if (data.placeId) {
+      const place = await prisma.place.findFirst({ where: { id: Number(data.placeId), userId } });
+      if (!place) return res.status(400).json({ message: 'Place not found.' });
+      latitude = place.latitude;
+      longitude = place.longitude;
+      radiusMeters = place.radiusMeters;
+      placeName = place.name;
+    }
+    if (kind === 'arrival' && (latitude == null || longitude == null)) {
+      return res.status(400).json({ message: 'Arrival reminders need a saved place or coordinates.' });
+    }
+    const remindAt = data.remindAt ? new Date(data.remindAt) : (kind === 'arrival' ? new Date('2099-01-01T00:00:00.000Z') : null);
+    if (!data.title || !remindAt || Number.isNaN(remindAt.getTime())) {
+      return res.status(400).json({ message: 'Title and reminder date/time are required.' });
+    }
     const reminder = await prisma.reminder.create({
       data: {
         userId,
         title: String(data.title).trim(),
         remindAt,
+        kind,
+        latitude,
+        longitude,
+        radiusMeters,
+        placeName,
         enabled: data.enabled !== false,
         status: data.status || 'scheduled',
         taskId: data.taskId ? Number(data.taskId) : null,
@@ -261,6 +392,43 @@ app.post('/api/reminders', async (req, res) => {
     });
     res.status(201).json({ reminder });
   } catch (error) { res.status(400).json({ message: 'Unable to create reminder.', error: error.message }); }
+});
+
+app.get('/api/places', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
+  const places = await prisma.place.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  res.json({ places });
+});
+
+app.post('/api/places', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
+  try {
+    const { name, latitude, longitude, radiusMeters } = req.body ?? {};
+    if (!name || latitude == null || longitude == null) {
+      return res.status(400).json({ message: 'Place name, latitude, and longitude are required.' });
+    }
+    const place = await prisma.place.create({
+      data: {
+        userId,
+        name: String(name).trim(),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        radiusMeters: Number(radiusMeters || 150),
+      },
+    });
+    res.status(201).json({ place });
+  } catch (error) {
+    res.status(400).json({ message: 'Unable to save place.', error: error.message });
+  }
+});
+
+app.delete('/api/places/:id', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
+  await prisma.place.deleteMany({ where: { id: Number(req.params.id), userId } });
+  res.json({ ok: true });
 });
 
 app.patch('/api/reminders/:id', async (req, res) => {
@@ -441,6 +609,30 @@ app.post('/api/ai/interpret', async (req, res) => {
   }
 });
 
+app.post('/api/ai/from-image', async (req, res) => {
+  const userId = requireUser(req, res);
+  if (!userId) return;
+  const image = String(req.body?.image || '').trim();
+  if (!image) return res.status(400).json({ message: 'An image is required.' });
+  try {
+    await materializeRecurrence(userId);
+    const existingTasks = await ownedTasks(userId);
+    const result = await ai.interpretImage({
+      image,
+      mimeType: req.body?.mimeType,
+      timezone: req.body?.timezone,
+      existingTasks,
+    });
+    await prisma.aiMessage.create({ data: { userId, role: 'user', content: '[image]' } });
+    await prisma.aiMessage.create({
+      data: { userId, role: 'assistant', content: result.message || '', actions: JSON.stringify(result) },
+    });
+    return res.json(result);
+  } catch (error) {
+    return res.status(error.status || 500).json({ message: error.message });
+  }
+});
+
 app.post('/api/ai/transcribe', async (req, res) => {
   const userId = requireUser(req, res);
   if (!userId) return;
@@ -457,6 +649,7 @@ app.post('/api/ai/confirm', async (req, res) => {
   if (!userId) return;
   const actions = req.body?.tasks || [];
   const reschedule = req.body?.reschedule;
+  const arrivalReminders = req.body?.arrivalReminders || [];
   try {
     const created = [];
     for (const item of actions) {
@@ -504,7 +697,37 @@ app.post('/api/ai/confirm', async (req, res) => {
         await notify(userId, 'Task rescheduled', existing.title, 'schedule', 'task', existing.id);
       }
     }
-    return res.json({ created, ok: true });
+    const arrivals = [];
+    for (const item of arrivalReminders) {
+      const needle = String(item.placeName || item.place || '').toLowerCase().trim();
+      const places = await prisma.place.findMany({ where: { userId } });
+      const place = places.find((row) => {
+        const name = String(row.name || '').toLowerCase();
+        return name === needle || name.includes(needle) || needle.includes(name);
+      });
+      if (!place) {
+        return res.status(400).json({
+          message: `Save a place named “${item.placeName || 'home or work'}” in Integrations first, then confirm again.`,
+        });
+      }
+      const reminder = await prisma.reminder.create({
+        data: {
+          userId,
+          title: String(item.title || `When you arrive at ${place.name}`).trim(),
+          remindAt: new Date('2099-01-01T00:00:00.000Z'),
+          kind: 'arrival',
+          latitude: place.latitude,
+          longitude: place.longitude,
+          radiusMeters: place.radiusMeters,
+          placeName: place.name,
+          enabled: true,
+          status: 'scheduled',
+        },
+      });
+      arrivals.push(reminder);
+      await notify(userId, 'Arrival reminder', reminder.title, 'reminder', 'reminder', reminder.id);
+    }
+    return res.json({ created, arrivals, ok: true });
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
@@ -678,6 +901,7 @@ process.on('exit', (code) => {
 async function start() {
   try {
     await prisma.$connect();
+    await ensureSchema(prisma);
     console.log('ORDINA db: connected');
   } catch (error) {
     console.error('ORDINA db: failed to connect', error);

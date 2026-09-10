@@ -10,7 +10,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { Radii } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { confirmAiActions, fetchAiMessages, interpretInstruction, transcribeAudio } from '@/services/ai';
+import { confirmAiActions, fetchAiMessages, interpretFromImage, interpretInstruction, transcribeAudio } from '@/services/ai';
 import { createCalendarEvents, matchingContacts, pickTaskImage } from '@/services/device-integrations';
 import { useTasksStore } from '@/store/tasks-store';
 import { href } from '@/utils/href';
@@ -62,7 +62,7 @@ export default function OrdinaAiScreen() {
       const data = await interpretInstruction({ message, timezone, contacts });
       setResult(data);
       setHistory((rows) => [...rows, { role: 'assistant', content: data.message || 'Here is what I understood.' }]);
-      setVoice(data.tasks?.length || data.reschedule ? 'confirmation' : 'completed');
+      setVoice(data.tasks?.length || data.reschedule || data.arrivalReminders?.length ? 'confirmation' : 'completed');
     } catch (error: any) {
       setVoice('error');
       Alert.alert('ORDINA AI', error?.response?.data?.message || error?.message || 'Unable to reach ORDINA AI.');
@@ -71,7 +71,11 @@ export default function OrdinaAiScreen() {
 
   async function confirm() {
     try {
-      await confirmAiActions({ tasks: result?.tasks ?? [], reschedule: result?.reschedule });
+      await confirmAiActions({
+        tasks: result?.tasks ?? [],
+        reschedule: result?.reschedule,
+        arrivalReminders: result?.arrivalReminders,
+      });
       await createCalendarEvents(result?.tasks ?? []).catch(() => undefined);
       await loadTasks();
       setVoice('completed');
@@ -97,6 +101,12 @@ export default function OrdinaAiScreen() {
           setVoice('error');
           return;
         }
+        const info = await FileSystem.getInfoAsync(uri);
+        if ('size' in info && typeof info.size === 'number' && info.size > 4_500_000) {
+          Alert.alert('Voice', 'That recording is too large for Expo Go. Try a shorter clip.');
+          setVoice('error');
+          return;
+        }
         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
         const text = await transcribeAudio(base64, 'audio/m4a');
         if (!text.trim()) {
@@ -116,15 +126,58 @@ export default function OrdinaAiScreen() {
         setVoice('error');
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const next = new Audio.Recording();
-      await next.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await next.startAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+      const { recording: next } = await Audio.Recording.createAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 64000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.MEDIUM,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 64000,
+        },
+        web: {},
+        isMeteringEnabled: false,
+      });
       setRecording(next);
       setVoice('listening');
     } catch (error: any) {
       setVoice('error');
       Alert.alert('Voice', error?.message || 'Voice capture is unavailable on this device.');
+    }
+  }
+
+  async function attachImage() {
+    try {
+      const asset = await pickTaskImage();
+      if (!asset?.uri) return;
+      setAttachmentName(asset.fileName || 'Selected image');
+      setVoice('understanding');
+      setHistory((rows) => [...rows, { role: 'user', content: 'Image → tasks' }]);
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const data = await interpretFromImage({ image: base64, mimeType, timezone });
+      setResult(data);
+      setHistory((rows) => [...rows, { role: 'assistant', content: data.message || 'Here is what I read from the image.' }]);
+      setVoice(data.tasks?.length ? 'confirmation' : 'completed');
+    } catch (error: any) {
+      setVoice('error');
+      Alert.alert('Image', error?.response?.data?.message || error?.message || 'Could not turn that image into tasks.');
     }
   }
 
@@ -188,9 +241,18 @@ export default function OrdinaAiScreen() {
           </View>
         ) : null}
 
-        {tasks.length > 0 ? (
+        {(tasks.length > 0 || result?.arrivalReminders?.length) ? (
           <View style={[styles.proposal, { backgroundColor: theme.card }]}>
             <ThemedText style={styles.proposalTitle}>Confirm these actions</ThemedText>
+            {(result?.arrivalReminders || []).map((item: { title: string; placeName?: string }) => (
+              <View key={`arrive-${item.title}`} style={styles.proposalItem}>
+                <View style={[styles.bar, { backgroundColor: theme.secondary }]} />
+                <View style={{ flex: 1 }}>
+                  <ThemedText themeColor="textSecondary">When you arrive at {item.placeName}</ThemedText>
+                  <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
+                </View>
+              </View>
+            ))}
             {tasks.map((item) => (
               <View key={item.title} style={styles.proposalItem}>
                 <View style={[styles.bar, { backgroundColor: theme.primary }]} />
@@ -220,7 +282,7 @@ export default function OrdinaAiScreen() {
       </ScrollView>
 
       <View style={styles.quick}>
-        {['What should I do now?', "I'm overwhelmed", 'Plan my week'].map((label) => (
+        {['What should I do now?', "I'm overwhelmed", 'Plan my week', 'Remind me when I arrive at work'].map((label) => (
           <Pressable key={label} onPress={() => void send(label)} style={[styles.chip, { borderColor: theme.border }]}>
             <ThemedText style={{ fontSize: 12 }}>{label}</ThemedText>
           </Pressable>
@@ -238,9 +300,7 @@ export default function OrdinaAiScreen() {
         {attachmentName ? <ThemedText style={{ fontSize: 10, maxWidth: 48 }} numberOfLines={1}>{attachmentName}</ThemedText> : null}
         <Pressable
           onPress={() => {
-            void pickTaskImage().then((asset) => {
-              if (asset) setAttachmentName(asset.fileName || 'Selected image');
-            });
+            void attachImage();
           }}
           style={[styles.mic, { backgroundColor: theme.backgroundElement }]}>
           <Ionicons name="image-outline" size={16} color={theme.text} />
