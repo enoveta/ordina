@@ -84,9 +84,8 @@ export default function OrdinaAiScreen() {
 
   async function toggleVoice() {
     try {
-      // Native audio is deferred until the Android development build is ready.
-      if (Platform.OS === 'web' || Platform.OS === 'android') {
-        Alert.alert('Voice', 'Voice capture will be enabled in the Android development build. Use the text box for now.');
+      if (Platform.OS === 'web') {
+        Alert.alert('Voice', 'Voice capture is not available on web. Type your instruction instead.');
         return;
       }
       if (recording) {

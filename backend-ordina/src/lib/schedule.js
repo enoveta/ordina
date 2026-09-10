@@ -1,5 +1,18 @@
-function toDateKey(date) {
-  return new Date(date).toISOString().slice(0, 10);
+function toDateKey(date, timeZone) {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return toDateKey(new Date(), timeZone);
+  if (timeZone) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
+  }
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function addDays(dateKey, days) {

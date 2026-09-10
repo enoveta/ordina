@@ -17,7 +17,7 @@ export default function ForgotPasswordScreen() {
       <View style={styles.content}>
         <ThemedText style={styles.title}>Forgot Password?</ThemedText>
         <ThemedText themeColor="textSecondary">
-          Enter the email on your account. Password reset from the server will be added with authentication.
+          Password reset email is not enabled in this build. Use the email and password you registered with, or create a new account.
         </ThemedText>
         <AuthField
           label="Email Address"
@@ -30,7 +30,7 @@ export default function ForgotPasswordScreen() {
         <PrimaryButton
           label="Send reset link"
           onPress={() =>
-            Alert.alert('Reset password', 'Email delivery will work once the backend auth phase is connected.', [
+            Alert.alert('Reset password', 'Email reset is not configured. Sign in with your existing password or create a new account.', [
               { text: 'OK', onPress: () => router.back() },
             ])
           }

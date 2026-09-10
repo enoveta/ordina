@@ -487,8 +487,12 @@ app.post('/api/ai/confirm', async (req, res) => {
       }
       await notify(userId, 'Task created', task.title, 'task', 'task', task.id);
     }
-    if (reschedule?.taskId) {
-      const existing = await prisma.task.findFirst({ where: { id: Number(reschedule.taskId), userId } });
+    if (reschedule?.taskId || reschedule?.titleHint) {
+      const existing = reschedule.taskId
+        ? await prisma.task.findFirst({ where: { id: Number(reschedule.taskId), userId } })
+        : await prisma.task.findFirst({
+          where: { userId, title: { contains: String(reschedule.titleHint) } },
+        });
       if (existing) {
         await prisma.task.update({
           where: { id: existing.id },

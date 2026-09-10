@@ -14,8 +14,7 @@ function readUserId(req) {
     const payload = jwt.verify(token, JWT_SECRET);
     return Number(payload.sub);
   } catch {
-    const match = token.match(/^demo-token-(\d+)$/);
-    return match ? Number(match[1]) : null;
+    return null;
   }
 }
 

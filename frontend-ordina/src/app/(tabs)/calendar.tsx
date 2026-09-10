@@ -6,7 +6,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useTasksStore } from '@/store/tasks-store';
+import { localDateKey } from '@/utils/dates';
 
 type ViewMode = 'week' | 'month';
 
@@ -59,15 +60,19 @@ function getWeekDays(baseDate: Date): Date[] {
 
 export default function CalendarScreen() {
   const theme = useTheme();
-  const { tasks } = useTasksStore();
+  const { tasks, loadTasks } = useTasksStore();
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekBase, setWeekBase] = useState(new Date());
 
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
   const weekDays = getWeekDays(weekBase);
   const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-  const selectedISO = selectedDate.toISOString().split('T')[0];
+  const selectedISO = localDateKey(selectedDate);
 
   const dayTasks = tasks.filter(
     (t) => t.dueDate === selectedISO && t.startTime && !t.completed
@@ -125,9 +130,9 @@ export default function CalendarScreen() {
       {/* Day headers */}
       <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
         {weekDays.map((d, i) => {
-          const iso = d.toISOString().split('T')[0];
+          const iso = localDateKey(d);
           const isSelected = iso === selectedISO;
-          const isToday = iso === new Date().toISOString().split('T')[0];
+          const isToday = iso === localDateKey();
           return (
             <Pressable
               key={i}

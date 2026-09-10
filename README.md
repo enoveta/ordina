@@ -4,133 +4,120 @@ AI-powered personal productivity for Android and iOS.
 
 > Tell ORDINA what you need to do. Let ORDINA put it in order.
 
-This repository is a React Native (Expo) app plus a Node.js Express API with Prisma and SQLite. PostgreSQL remains an option for later cloud hosting; development uses SQLite as already configured.
+ORDINA turns natural-language (and optional voice) instructions into real tasks, reminders, and a schedule. You confirm before anything important is saved.
 
-## Current phase
+## What it does
 
-**Phase 1 — foundation** (`feature/phase-1-foundation`)
+- Email/password accounts with JWT sessions and an optional app PIN
+- Tasks, projects, goals, reminders, recurrence, and a notification inbox
+- Home, calendar, search, light/dark theme, and multiple languages
+- ORDINA AI: create several tasks from one instruction, reschedule, “what should I do now?”, “I’m overwhelmed”, conflict-aware times
+- Phone integrations (optional): microphone, notifications, contacts, calendar, location, camera/files
 
-Verified existing Expo + Prisma/SQLite setup, added the Express API shell, ORDINA branding (logo, Poppins, light/dark theme), and the five-tab navigation. Authentication and task CRUD are next.
+## Run locally
 
-| Branch | Phase |
-| --- | --- |
-| `chore/TASK-001-setup-environment` | Project setup and SQLite schema |
-| `feature/phase-1-foundation` | API shell, branding, navigation, theme |
-| `feature/authentication` | Phase 2 (next) |
-| `feature/task-management` | Phase 3 |
-| `feature/scheduling` | Phase 4 |
-| `feature/ordina-ai` | Phase 6 |
-| `feature/voice-assistant` | Phase 7 |
+Need **Node.js 20+**. Use **two terminals**.
 
-## Prerequisites
-
-- Node.js 20+
-- npm
-- Git
-- Expo Go or an emulator/simulator for the mobile app
-
-## Repository layout
-
-```text
-MobileApplication/
-  frontend-ordina/   Expo Router app
-  backend-ordina/    Express + Prisma API
-```
-
-## Backend setup
+### 1. API
 
 ```bash
 cd backend-ordina
-cp .env.example .env
+copy .env.example .env   # Windows
 npm install
 npm run db:generate
 npm run db:setup
-npm run db:test:prisma
 npm run dev
 ```
 
-API health check: `GET http://localhost:4000/api/health`
+Health check: [http://localhost:4000/api/health](http://localhost:4000/api/health)
 
-### Environment variables
-
-See `backend-ordina/.env.example`.
-
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Prisma SQLite file, default `file:./data/ordina.sqlite` |
-| `PORT` | API port, default `4000` |
-| `JWT_SECRET` | Required for Phase 2 auth. Never commit a real secret. |
-| `GEMINI_API_KEY` | Backend-only Google Gemini API key. Required for full AI and voice features. |
-Configure `GEMINI_API_KEY` in `backend-ordina/.env` for full AI and voice features. The mobile app only talks to `/api/...`.
-| `CORS_ORIGIN` | Browser origin allowlist |
-
-Do not put AI keys in the React Native app.
-
-## Frontend setup
+### 2. App
 
 ```bash
 cd frontend-ordina
-cp .env.example .env
+copy .env.example .env
 npm install
-npx expo start
+npm start
 ```
 
-Android emulator: set `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000` if the API runs on the host machine.
+Scan the QR code with **Expo Go**. If port 8081 is busy, choose the next port.
 
-Physical device: use your computer's LAN IP instead of `localhost`.
+| Device | `EXPO_PUBLIC_API_URL` in `frontend-ordina/.env` |
+| --- | --- |
+| Same computer / iOS simulator | `http://localhost:4000` |
+| Android emulator | `http://10.0.2.2:4000` |
+| Physical phone | `http://YOUR_LAN_IP:4000` |
 
-### Theme
+Restart Expo after changing the API URL.
 
-Light mode is the default (`#F8FAFC` background, `#5C4DF2` primary). Dark mode follows the Figma board (`#0F172A` background, `#7C3AED` AI accent). Switch in **Profile → Appearance**. The choice is stored on the device.
+## AI
 
-The approved logo lockup (octagon mark + ORDINA + tagline on black) is used as-is on splash and brand surfaces.
+The **mobile app never holds the Gemini key**. The API calls Gemini.
 
-## Database
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | `backend-ordina/.env` | Full natural-language + voice transcription |
+| `GEMINI_MODEL` | same file | Default `gemini-2.0-flash` |
+| `JWT_SECRET` | same file | Sign-in tokens |
+| `DATABASE_URL` | same file | SQLite file, default `file:./data/ordina.sqlite` |
 
-Prisma schema: `backend-ordina/prisma/schema.prisma`
+If Gemini is missing or down, ORDINA still plans with its built-in parser (multiple tasks, relative dates, reschedule). Voice transcription **requires** `GEMINI_API_KEY`. Confirm is always required before tasks are written.
 
-Current models: User, Task, Category, TaskCategory.
+### Example
 
-```bash
-cd backend-ordina
-npx prisma migrate dev --name <name>
+“Tomorrow I need to finish my React project, study PostgreSQL for two hours, call John at 4 PM, and go to the gym in the evening.”
+
+ORDINA proposes four dated tasks. You tap **Confirm & save**.
+
+## Layout
+
+```text
+MobileApplication/
+  frontend-ordina/   Expo Router (SDK 57)
+  backend-ordina/    Express + Prisma + SQLite
 ```
 
-Full notes: `backend-ordina/DATABASE.md`.
+## API (authenticated unless noted)
 
-## API
+| Area | Routes |
+| --- | --- |
+| Health | `GET /api/health` |
+| Auth | `POST /api/auth/register`, `POST /api/auth/login` |
+| Tasks | `GET/POST /api/tasks`, `PATCH/DELETE /api/tasks/:id`, `PATCH /api/tasks/:id/complete` |
+| Projects | `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/:id` |
+| Goals / reminders | `/api/goals`, `/api/reminders` |
+| Notifications | `GET /api/notifications`, read/delete |
+| Dashboard | `GET /api/dashboard` |
+| AI | `POST /api/ai/interpret`, `/transcribe`, `/confirm`, `GET /api/ai/messages` |
 
-Phase 1 exposes:
+Every protected record is scoped to the signed-in user.
 
-- `GET /api/health` — process + database connectivity
+## Theme
 
-Responses:
+Light is default (`#F8FAFC`, primary `#5C4DF2`). Dark follows the Figma board. Switch in **Profile → Appearance**.
 
-```json
-{ "success": true, "data": { } }
-{ "success": false, "error": { "message": "..." } }
-```
+## Limitations (honest)
 
-Auth, tasks, projects, goals, AI, and analytics routes will be added in later phases.
+- Google / Apple sign-in and password-reset email are **not** wired (no OAuth/SMTP in this build)
+- Voice and device calendar/contacts work fully on a **dev/production build**, not always in Expo Go
+- Location arrival reminders are permission + settings only (no geofence in Expo Go)
+- Image pick is ready for a later image-to-task model; images are not sent to Gemini yet
 
-## AI integration
-
-ORDINA AI is called from the **backend**. Configure `GEMINI_API_KEY` in `backend-ordina/.env` for full AI and voice features. The mobile app only talks to `/api/...`.
-
-## Testing
+## Tests
 
 ```bash
 cd backend-ordina
 npm test
 npm run db:test:prisma
+node -e "const r=require('./src/lib/ai').localInterpret('Tomorrow study React for 2 hours and call John at 4 PM', []); console.log(JSON.stringify(r,null,2))"
 ```
 
-Use Postman against `http://localhost:4000/api/health`. Frontend checks: `npx tsc --noEmit` in `frontend-ordina`.
+Frontend: `npx tsc --noEmit` in `frontend-ordina`.
 
-## Deployment (later)
+## Database
 
-Host the API and database in the cloud, point `DATABASE_URL` at managed Postgres when you migrate off SQLite, and keep secrets in the host environment. The Expo app is built with EAS for Android and iOS.
+See `backend-ordina/DATABASE.md`. Do not wipe production data; only additive Prisma migrations.
 
-## Design reference
+## Design
 
 Figma: [ORDINA_APP](https://www.figma.com/design/SCVeMG4DD2DVHn5QAk3gbW/ORDINA_APP?node-id=0-1)

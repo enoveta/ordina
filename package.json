@@ -1,0 +1,11 @@
+{
+  "name": "ordina",
+  "private": true,
+  "description": "ORDINA mobile app and API",
+  "scripts": {
+    "dev:api": "npm run dev --prefix backend-ordina",
+    "dev:app": "npm start --prefix frontend-ordina",
+    "db:generate": "npm run db:generate --prefix backend-ordina",
+    "db:setup": "npm run db:setup --prefix backend-ordina"
+  }
+}

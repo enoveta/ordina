@@ -1,5 +1,6 @@
 require('dotenv/config');
 
+const fs = require('fs');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
@@ -18,6 +19,7 @@ function createAdapter() {
   const relative = databaseUrl.replace(/^file:/i, '').replace(/^\/\/\//, '').replace(/^\/\//, '');
   const backendRoot = path.resolve(__dirname, '..', '..');
   const absolute = path.isAbsolute(relative) ? relative : path.resolve(backendRoot, relative);
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
   return new PrismaBetterSqlite3({ url: absolute });
 }
 

@@ -12,6 +12,7 @@ import { useI18n } from '@/providers/i18n-provider';
 import { useAuthStore } from '@/store/auth-store';
 import { useTasksStore, type Task } from '@/store/tasks-store';
 import { api } from '@/services/api';
+import { localDateKey, addLocalDays } from '@/utils/dates';
 
 function formatGreeting(t: (path: string) => string): string {
   const hour = new Date().getHours();
@@ -69,8 +70,8 @@ export default function HomeScreen() {
       .catch(() => undefined);
   }, [loadTasks]);
 
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const today = localDateKey();
+  const tomorrow = addLocalDays(today, 1);
 
   const todayTasks = tasks
     .filter((t) => t.dueDate === today)
