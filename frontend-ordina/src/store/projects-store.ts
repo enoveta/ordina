@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { createProjectApi, fetchProjects } from '@/services/api';
+import { createProjectApi, deleteProjectApi, fetchProjects, updateProjectApi } from '@/services/api';
 
 export type ProjectStatus = 'active' | 'completed' | 'on_hold';
 
@@ -40,6 +40,8 @@ interface ProjectsState {
   projects: Project[];
   load: () => Promise<void>;
   addProject: (project: { name: string; subtitle?: string; color?: string }) => Promise<void>;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 }
 
 export const useProjectsStore = create<ProjectsState>((set) => ({
@@ -57,5 +59,19 @@ export const useProjectsStore = create<ProjectsState>((set) => ({
   addProject: async (projectData) => {
     const project = await createProjectApi(projectData);
     set((state) => ({ projects: [mapProject(project), ...state.projects] }));
+  },
+
+  updateProject: async (id, updates) => {
+    const updated = await updateProjectApi(id, updates);
+    set((state) => ({
+      projects: state.projects.map((p) => (p.id === id ? mapProject(updated) : p)),
+    }));
+  },
+
+  deleteProject: async (id) => {
+    await deleteProjectApi(id);
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== id),
+    }));
   },
 }));

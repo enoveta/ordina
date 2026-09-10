@@ -7,11 +7,15 @@ import { BrandLockup } from '@/components/brand-lockup';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function SplashScreen() {
-  const { hydrated, hasSeenWelcome, hasCompletedQuestions, isSignedIn } = useAuthStore();
+  const { hydrated, hasSeenWelcome, hasCompletedQuestions, isSignedIn, requiresUnlock } = useAuthStore();
 
   useEffect(() => {
     if (!hydrated) return;
     const timer = setTimeout(() => {
+      if (requiresUnlock && !isSignedIn) {
+        router.replace(href('/unlock'));
+        return;
+      }
       if (isSignedIn) {
         router.replace(href('/(tabs)'));
         return;
@@ -27,7 +31,7 @@ export default function SplashScreen() {
       router.replace(href('/sign-in'));
     }, 1400);
     return () => clearTimeout(timer);
-  }, [hydrated, hasSeenWelcome, hasCompletedQuestions, isSignedIn]);
+  }, [hydrated, hasSeenWelcome, hasCompletedQuestions, isSignedIn, requiresUnlock]);
 
   return (
     <View style={styles.screen}>

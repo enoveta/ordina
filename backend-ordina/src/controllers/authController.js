@@ -22,6 +22,14 @@ async function login(req, res, next) {
   }
 }
 
+async function verifyEmail(req, res, next) {
+  try {
+    return success(res, await authService.verifyEmail(req.body.email, req.body.code));
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function google(req, res, next) {
   try {
     const idToken = req.body.idToken;
@@ -65,4 +73,4 @@ async function updateMe(req, res, next) {
   }
 }
 
-module.exports = { register, login, google, apple, forgotPassword, me, updateMe };
+module.exports = { register, login, verifyEmail, google, apple, forgotPassword, me, updateMe };

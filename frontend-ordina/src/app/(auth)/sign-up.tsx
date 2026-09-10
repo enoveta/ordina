@@ -19,27 +19,28 @@ export default function SignUpScreen() {
   const signUp = useAuthStore((s) => s.signUp);
   const setDraft = useAuthStore((s) => s.setDraft);
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
 
   async function onCreate() {
-    if (!name.trim() || !email.trim() || !password) {
-      Alert.alert('Create Account', 'Fill in name, email, and password.');
+    if (!username.trim() || !name.trim() || !email.trim() || !pin) {
+      Alert.alert('Create Account', 'Fill in username, name, email, and your 4-digit PIN.');
       return;
     }
-    if (password.length < 8) {
-      Alert.alert('Create Account', 'Password must be at least 8 characters.');
+    if (!/^\d{4}$/.test(pin)) {
+      Alert.alert('Create Account', 'PIN must contain exactly 4 numbers.');
       return;
     }
-    if (password !== confirm) {
-      Alert.alert('Create Account', 'Passwords do not match.');
+    if (pin !== confirmPin) {
+      Alert.alert('Create Account', 'PINs do not match.');
       return;
     }
     try {
-      setDraft({ name: name.trim() });
-      await signUp(email.trim(), password);
-      router.replace(href('/(tabs)'));
+      setDraft({ username: username.trim(), name: name.trim() });
+      const result = await signUp(username.trim(), email.trim(), pin);
+      router.push({ pathname: '/verify-email', params: { email: result.email, code: result.verificationCode || '' } });
     } catch (error) {
       Alert.alert('Create Account', apiMessage(error));
     }
@@ -65,6 +66,7 @@ export default function SignUpScreen() {
           </View>
 
           <AuthField label="Full Name" placeholder="Sarah Jones" value={name} onChangeText={setName} />
+          <AuthField label="Username" placeholder="sarah_jones" autoCapitalize="none" value={username} onChangeText={setUsername} />
           <AuthField
             label="Email Address"
             placeholder="sarah.jones@example.com"
@@ -73,13 +75,14 @@ export default function SignUpScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          <AuthField label="Password" placeholder="••••••••" isPassword value={password} onChangeText={setPassword} />
+          <AuthField label="4-digit PIN" placeholder="1234" isPassword keyboardType="number-pad" value={pin} onChangeText={setPin} />
           <AuthField
-            label="Confirm Password"
-            placeholder="••••••••"
+            label="Confirm PIN"
+            placeholder="1234"
             isPassword
-            value={confirm}
-            onChangeText={setConfirm}
+            keyboardType="number-pad"
+            value={confirmPin}
+            onChangeText={setConfirmPin}
           />
 
           <PrimaryButton label="Create Account" onPress={() => void onCreate()} />

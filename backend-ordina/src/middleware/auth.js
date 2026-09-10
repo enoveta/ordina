@@ -24,6 +24,7 @@ function signToken(user) {
 function publicUser(user) {
   return {
     id: user.id,
+    username: user.username,
     email: user.email,
     name: user.displayName,
     age: user.age,

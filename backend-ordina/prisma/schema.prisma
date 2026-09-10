@@ -8,8 +8,11 @@ datasource db {
 
 model User {
   id                  Int        @id @default(autoincrement())
+  username            String     @unique
   email               String     @unique
   passwordHash        String     @map("password_hash")
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  emailVerificationCode String?  @map("email_verification_code")
   displayName         String     @map("display_name")
   age                 Int?
   gender              String?

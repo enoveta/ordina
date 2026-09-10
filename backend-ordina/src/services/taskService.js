@@ -91,27 +91,87 @@ async function deleteTask(userId, id) {
   await prisma.task.delete({ where: { id: existing.id } });
 }
 
+async function getTask(userId, id) {
+  const task = await prisma.task.findFirst({ where: { id: Number(id), userId } });
+  if (!task) {
+    const error = new Error('Task not found');
+    error.status = 404;
+    throw error;
+  }
+  return mapTask(task);
+}
+
 async function listProjects(userId) {
   return prisma.project.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
 }
 
+async function getProject(userId, id) {
+  const project = await prisma.project.findFirst({
+    where: { id: Number(id), userId },
+    include: { tasks: true },
+  });
+  if (!project) {
+    const error = new Error('Project not found');
+    error.status = 404;
+    throw error;
+  }
+  return project;
+}
+
 async function createProject(userId, body) {
+  if (!body.name || !String(body.name).trim()) {
+    const error = new Error('Project name is required');
+    error.status = 422;
+    throw error;
+  }
   return prisma.project.create({
     data: {
       userId,
-      name: body.name,
-      subtitle: body.subtitle,
-      progress: body.progress || 0,
+      name: body.name.trim(),
+      subtitle: body.subtitle ? String(body.subtitle).trim() : null,
+      progress: body.progress ? Number(body.progress) : 0,
       color: body.color || '#8B5CF6',
     },
   });
 }
 
+async function updateProject(userId, id, body) {
+  const existing = await prisma.project.findFirst({ where: { id: Number(id), userId } });
+  if (!existing) {
+    const error = new Error('Project not found');
+    error.status = 404;
+    throw error;
+  }
+  const data = {};
+  if (body.name !== undefined) data.name = body.name.trim();
+  if (body.subtitle !== undefined) data.subtitle = body.subtitle ? String(body.subtitle).trim() : null;
+  if (body.progress !== undefined) data.progress = Number(body.progress);
+  if (body.color !== undefined) data.color = body.color;
+  if (body.tasksTotal !== undefined) data.tasksTotal = Number(body.tasksTotal);
+  if (body.tasksCompleted !== undefined) data.tasksCompleted = Number(body.tasksCompleted);
+  if (body.tasksOverdue !== undefined) data.tasksOverdue = Number(body.tasksOverdue);
+  return prisma.project.update({ where: { id: existing.id }, data });
+}
+
+async function deleteProject(userId, id) {
+  const existing = await prisma.project.findFirst({ where: { id: Number(id), userId } });
+  if (!existing) {
+    const error = new Error('Project not found');
+    error.status = 404;
+    throw error;
+  }
+  await prisma.project.delete({ where: { id: existing.id } });
+}
+
 module.exports = {
   listTasks,
+  getTask,
   createTask,
   updateTask,
   deleteTask,
   listProjects,
+  getProject,
   createProject,
+  updateProject,
+  deleteProject,
 };

@@ -34,9 +34,25 @@ async function remove(req, res, next) {
   }
 }
 
+async function getOne(req, res, next) {
+  try {
+    return success(res, { task: await taskService.getTask(req.userId, req.params.id) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function listProjects(req, res, next) {
   try {
     return success(res, { projects: await taskService.listProjects(req.userId) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getProject(req, res, next) {
+  try {
+    return success(res, { project: await taskService.getProject(req.userId, req.params.id) });
   } catch (error) {
     return next(error);
   }
@@ -50,4 +66,32 @@ async function createProject(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, remove, listProjects, createProject };
+async function updateProject(req, res, next) {
+  try {
+    return success(res, { project: await taskService.updateProject(req.userId, req.params.id, req.body) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function removeProject(req, res, next) {
+  try {
+    await taskService.deleteProject(req.userId, req.params.id);
+    return success(res, { deleted: true });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  list,
+  getOne,
+  create,
+  update,
+  remove,
+  listProjects,
+  getProject,
+  createProject,
+  updateProject,
+  removeProject,
+};

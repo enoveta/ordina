@@ -7,17 +7,28 @@ function sessionPayload(user) {
   return { token: signToken(user), user: publicUser(user) };
 }
 
-async function register({ email, password, name, age, gender, goals }) {
+async function register({ username, email, pin, name, age, gender, goals }) {
+  const normalizedUsername = username.toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (existing) {
     const error = new Error('An account with this email already exists');
     error.status = 409;
     throw error;
   }
+  const existingUsername = await prisma.user.findUnique({ where: { username: normalizedUsername } });
+  if (existingUsername) {
+    const error = new Error('That username is already taken');
+    error.status = 409;
+    throw error;
+  }
+  const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
   const user = await prisma.user.create({
     data: {
+      username: normalizedUsername,
       email: email.toLowerCase(),
-      passwordHash: await argon2.hash(password),
+      passwordHash: await argon2.hash(pin),
+      emailVerified: false,
+      emailVerificationCode: verificationCode,
       displayName: name,
       age: age ? Number(age) : null,
       gender: gender || null,
@@ -26,23 +37,49 @@ async function register({ email, password, name, age, gender, goals }) {
       onboardingCompleted: true,
     },
   });
+  return {
+    email: user.email,
+    verificationRequired: true,
+    verificationCode: env.nodeEnv === 'production' ? undefined : verificationCode,
+  };
+}
+
+async function login({ identifier, pin }) {
+  const normalized = identifier.toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: normalized }, { username: normalized }] },
+  });
+  if (!user || user.provider !== 'local') {
+    const error = new Error('Invalid username/email or PIN');
+    error.status = 401;
+    throw error;
+  }
+  const ok = await argon2.verify(user.passwordHash, pin);
+  if (!ok) {
+    const error = new Error('Invalid username/email or PIN');
+    error.status = 401;
+    throw error;
+  }
+  if (!user.emailVerified) {
+    const error = new Error('Confirm your email before signing in');
+    error.status = 403;
+    throw error;
+  }
   return sessionPayload(user);
 }
 
-async function login({ email, password }) {
+async function verifyEmail(email, code) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  if (!user || user.provider !== 'local') {
-    const error = new Error('Invalid email or password');
-    error.status = 401;
+  if (!user || !user.emailVerificationCode || user.emailVerificationCode !== code) {
+    const error = new Error('Invalid email confirmation code');
+    error.status = 400;
     throw error;
   }
-  const ok = await argon2.verify(user.passwordHash, password);
-  if (!ok) {
-    const error = new Error('Invalid email or password');
-    error.status = 401;
-    throw error;
-  }
-  return sessionPayload(user);
+  const verified = await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerified: true, emailVerificationCode: null },
+  });
+  return sessionPayload(verified);
 }
 
 async function googleSignIn(idToken) {
@@ -75,6 +112,7 @@ async function googleSignIn(idToken) {
   if (!user) {
     user = await prisma.user.create({
       data: {
+        username: `google_${String(googleId).slice(-12)}`,
         email,
         passwordHash: await argon2.hash(`google:${googleId}:${Date.now()}`),
         displayName: payload.name || email.split('@')[0],
@@ -126,6 +164,7 @@ async function appleSignIn({ identityToken, fullName }) {
   if (!user) {
     user = await prisma.user.create({
       data: {
+        username: `apple_${String(appleId).slice(-12)}`,
         email,
         passwordHash: await argon2.hash(`apple:${appleId}:${Date.now()}`),
         displayName: name,
@@ -150,4 +189,4 @@ async function updateProfile(userId, body) {
   return publicUser(user);
 }
 
-module.exports = { register, login, googleSignIn, appleSignIn, updateProfile, sessionPayload };
+module.exports = { register, login, verifyEmail, googleSignIn, appleSignIn, updateProfile, sessionPayload };

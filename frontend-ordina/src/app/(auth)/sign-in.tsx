@@ -19,16 +19,16 @@ export default function SignInScreen() {
   const signIn = useAuthStore((s) => s.signIn);
   const signInGoogle = useAuthStore((s) => s.signInGoogle);
   const signInApple = useAuthStore((s) => s.signInApple);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [pin, setPin] = useState('');
 
   async function onSignIn() {
-    if (!email.trim() || !password) {
-      Alert.alert('Sign in', 'Enter your email and password.');
+    if (!identifier.trim() || !pin) {
+      Alert.alert('Sign in', 'Enter your username or email and 4-digit PIN.');
       return;
     }
     try {
-      await signIn(email.trim(), password);
+      await signIn(identifier.trim(), pin);
       router.replace(href('/(tabs)'));
     } catch (error) {
       Alert.alert('Sign in', apiMessage(error));
@@ -79,19 +79,20 @@ export default function SignInScreen() {
           </View>
 
           <AuthField
-            label="Email Address"
-            placeholder="sarah.jones@example.com"
+            label="Username or Email"
+            placeholder="sarah_jones or email@example.com"
             autoCapitalize="none"
             keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            value={identifier}
+            onChangeText={setIdentifier}
           />
           <AuthField
-            label="Password"
-            placeholder="••••••••"
+            label="4-digit PIN"
+            placeholder="1234"
             isPassword
-            value={password}
-            onChangeText={setPassword}
+            keyboardType="number-pad"
+            value={pin}
+            onChangeText={setPin}
           />
           <Link href={href('/forgot-password')} asChild>
             <Pressable style={styles.forgot}>

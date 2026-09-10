@@ -7,7 +7,9 @@ import {
   googleAuth,
   loginAccount,
   registerAccount,
+  verifyEmail,
   saveToken,
+  updateProfileApi,
   TOKEN_KEY,
 } from '@/services/api';
 
@@ -44,6 +46,7 @@ async function write(key: string, value: string | null) {
 
 export type AuthUser = {
   id?: number;
+  username: string;
   name: string;
   email: string;
   age?: number | null;
@@ -52,6 +55,7 @@ export type AuthUser = {
 };
 
 export type ProfileDraft = {
+  username: string;
   name: string;
   age: string;
   gender: string;
@@ -63,6 +67,7 @@ type AuthState = {
   hasSeenWelcome: boolean;
   hasCompletedQuestions: boolean;
   isSignedIn: boolean;
+  requiresUnlock: boolean;
   user: AuthUser | null;
   draft: ProfileDraft;
   hydrate: () => Promise<void>;
@@ -71,20 +76,24 @@ type AuthState = {
   skipQuestions: () => Promise<void>;
   setDraft: (draft: Partial<ProfileDraft>) => void;
   applySession: (payload: { token: string; user: AuthUser }) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, pin: string) => Promise<void>;
+  signUp: (username: string, email: string, pin: string) => Promise<{ email: string; verificationCode?: string }>;
+  unlock: (pin: string) => Promise<void>;
+  confirmEmail: (email: string, code: string) => Promise<void>;
   signInGoogle: (idToken: string) => Promise<void>;
   signInApple: (identityToken: string, fullName?: string) => Promise<void>;
+  updateProfile: (data: Partial<AuthUser>) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
-const emptyDraft: ProfileDraft = { name: '', age: '', gender: '', goals: [] };
+const emptyDraft: ProfileDraft = { username: '', name: '', age: '', gender: '', goals: [] };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   hydrated: false,
   hasSeenWelcome: false,
   hasCompletedQuestions: false,
   isSignedIn: false,
+  requiresUnlock: false,
   user: null,
   draft: emptyDraft,
 
@@ -105,8 +114,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       hydrated: true,
       hasSeenWelcome: welcome === '1',
       hasCompletedQuestions: questions === '1',
-      isSignedIn: Boolean(token && user),
-      user: token ? user : null,
+      isSignedIn: false,
+      requiresUnlock: Boolean(token && user),
+      user,
     });
   },
 
@@ -134,28 +144,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await write(KEYS.questions, '1');
     set({
       isSignedIn: true,
+      requiresUnlock: false,
       user,
       hasSeenWelcome: true,
       hasCompletedQuestions: true,
     });
   },
 
-  signIn: async (email, password) => {
-    const payload = await loginAccount({ email, password });
+  signIn: async (identifier, pin) => {
+    const payload = await loginAccount({ identifier, pin });
     await get().applySession(payload);
   },
 
-  signUp: async (email, password) => {
+  signUp: async (username, email, pin) => {
     const { draft } = get();
     const payload = await registerAccount({
       email,
-      password,
+      pin,
+      username,
       name: draft.name || email.split('@')[0],
       age: draft.age ? Number(draft.age) : undefined,
       gender: draft.gender || undefined,
       goals: draft.goals,
     });
+    return payload;
+  },
+
+  unlock: async (pin) => {
+    const { user } = get();
+    if (!user) throw new Error('No saved account was found on this device.');
+    const payload = await loginAccount({ identifier: user.username || user.email, pin });
     await get().applySession(payload);
+  },
+
+  confirmEmail: async (email, code) => {
+    await get().applySession(await verifyEmail(email, code));
   },
 
   signInGoogle: async (idToken) => {
@@ -168,9 +191,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await get().applySession(payload);
   },
 
+  updateProfile: async (data) => {
+    const updated = await updateProfileApi(data as Record<string, unknown>);
+    const user: AuthUser = {
+      ...get().user!,
+      ...updated,
+    };
+    await write(KEYS.session, JSON.stringify(user));
+    set({ user });
+  },
+
   signOut: async () => {
     await saveToken(null);
     await write(KEYS.session, null);
-    set({ isSignedIn: false, user: null });
+    set({ isSignedIn: false, requiresUnlock: false, user: null });
   },
 }));

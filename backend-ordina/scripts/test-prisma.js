@@ -10,7 +10,7 @@ const prisma = new PrismaClient({ adapter });
 async function run() {
   const email = `prisma-${process.pid}@example.com`;
   const user = await prisma.user.create({
-    data: { email, passwordHash: 'hash', displayName: 'Prisma Test' }
+    data: { username: `prisma_${process.pid}`, email, passwordHash: 'hash', displayName: 'Prisma Test' }
   });
   const category = await prisma.category.create({
     data: { userId: user.id, name: 'Work', color: '#2563eb' }
@@ -20,7 +20,7 @@ async function run() {
       userId: user.id,
       title: 'Verify Prisma CRUD',
       description: 'Exercise the SQLite database through Prisma',
-      priority: 2,
+      priority: 'high',
       categories: { create: { categoryId: category.id } }
     },
     include: { categories: { include: { category: true } } }

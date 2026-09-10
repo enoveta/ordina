@@ -16,7 +16,7 @@ const QUICK = [
 export default function AiTabScreen() {
   const theme = useTheme();
   const [text, setText] = useState('');
-  const [reply, setReply] = useState('Tell me what you need to get done.');
+  const [reply, setReply] = useState('Ask me to create, organize, or prioritize something.');
   const [busy, setBusy] = useState(false);
 
   async function send(message?: string) {

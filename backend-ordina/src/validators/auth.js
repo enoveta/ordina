@@ -1,8 +1,9 @@
 const { z } = require('zod');
 
 const registerSchema = z.object({
+  username: z.string().trim().min(3).max(30).regex(/^[A-Za-z0-9_]+$/, 'Username can use letters, numbers, and underscores'),
   email: z.string().email(),
-  password: z.string().min(8),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
   name: z.string().min(1),
   age: z.coerce.number().int().min(13).max(120).optional(),
   gender: z.string().optional(),
@@ -10,8 +11,8 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  identifier: z.string().trim().min(1),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
 });
 
 function parse(schema, body) {

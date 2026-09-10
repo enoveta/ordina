@@ -4,9 +4,13 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const extraApiUrl = Constants.expoConfig?.extra?.apiUrl as string | undefined;
+const hostUri = Constants.expoConfig?.hostUri as string | undefined;
+const host = hostUri?.split(':')[0];
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? extraApiUrl ?? 'http://localhost:4000';
+  process.env.EXPO_PUBLIC_API_URL ??
+  extraApiUrl ??
+  (host && host !== 'localhost' && !host.startsWith('127.') ? `http://${host}:4000` : 'http://localhost:4000');
 
 export const TOKEN_KEY = 'ordina.token';
 
@@ -70,7 +74,12 @@ export async function registerAccount(body: Record<string, unknown>) {
   return data.data;
 }
 
-export async function loginAccount(body: { email: string; password: string }) {
+export async function verifyEmail(email: string, code: string) {
+  const { data } = await api.post('/api/auth/verify-email', { email, code });
+  return data.data;
+}
+
+export async function loginAccount(body: { identifier: string; pin: string }) {
   const { data } = await api.post('/api/auth/login', body);
   return data.data;
 }
@@ -88,6 +97,11 @@ export async function appleAuth(body: { identityToken: string; fullName?: string
 export async function fetchTasks() {
   const { data } = await api.get('/api/tasks');
   return data.data.tasks;
+}
+
+export async function fetchTask(id: string) {
+  const { data } = await api.get(`/api/tasks/${id}`);
+  return data.data.task;
 }
 
 export async function createTaskApi(body: Record<string, unknown>) {
@@ -109,9 +123,28 @@ export async function fetchProjects() {
   return data.data.projects;
 }
 
+export async function fetchProject(id: string) {
+  const { data } = await api.get(`/api/projects/${id}`);
+  return data.data.project;
+}
+
 export async function createProjectApi(body: Record<string, unknown>) {
   const { data } = await api.post('/api/projects', body);
   return data.data.project;
+}
+
+export async function updateProjectApi(id: string, body: Record<string, unknown>) {
+  const { data } = await api.patch(`/api/projects/${id}`, body);
+  return data.data.project;
+}
+
+export async function deleteProjectApi(id: string) {
+  await api.delete(`/api/projects/${id}`);
+}
+
+export async function updateProfileApi(body: Record<string, unknown>) {
+  const { data } = await api.patch('/api/auth/me', body);
+  return data.data.user;
 }
 
 export async function forgotPassword(email: string) {
