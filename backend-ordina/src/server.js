@@ -661,6 +661,29 @@ app.delete('/api/notifications/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`ORDINA backend listening on http://0.0.0.0:${port}`);
+process.on('uncaughtException', (error) => {
+  console.error('ORDINA uncaught exception', error);
 });
+process.on('unhandledRejection', (error) => {
+  console.error('ORDINA unhandled rejection', error);
+});
+process.on('exit', (code) => {
+  console.log(`ORDINA process exiting with code ${code}`);
+});
+
+async function start() {
+  try {
+    await prisma.$connect();
+    console.log('ORDINA db: connected');
+  } catch (error) {
+    console.error('ORDINA db: failed to connect', error);
+    process.exitCode = 1;
+    return;
+  }
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`ORDINA backend listening on http://0.0.0.0:${port}`);
+  });
+}
+
+start();
