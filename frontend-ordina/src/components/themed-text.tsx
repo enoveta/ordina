@@ -14,7 +14,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: theme[themeColor ?? 'text'], fontFamily: 'Poppins_400Regular' },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -48,12 +48,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 48,
+    fontFamily: 'Poppins_600SemiBold',
     fontWeight: 600,
     lineHeight: 52,
   },
   subtitle: {
     fontSize: 32,
     lineHeight: 44,
+    fontFamily: 'Poppins_600SemiBold',
     fontWeight: 600,
   },
   link: {
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
+    color: '#5C4DF2',
   },
   code: {
     fontFamily: Fonts.mono,

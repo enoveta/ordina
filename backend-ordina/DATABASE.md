@@ -1,39 +1,30 @@
 # ORDINA Database
 
-The backend uses SQLite through Prisma's libSQL adapter (with `better-sqlite3` retained for existing low-level database tooling). The default database file is `data/ordina.sqlite`, configured by `DATABASE_URL` in `.env`.
+SQLite via Prisma. Local development uses `@prisma/adapter-better-sqlite3`. Remote Turso/libSQL URLs still use `@prisma/adapter-libsql`. Default file: `data/ordina.sqlite` (`DATABASE_URL` in `.env`).
 
-## Entity relationship
+## Models
 
-```text
-users 1 ───< tasks
-users 1 ───< categories
-tasks >───< categories
-       via task_categories
-```
+User owns tasks, projects, goals, reminders, notifications, AI messages, and categories.
 
-Deleting a user cascades to their tasks and categories. Deleting a task or category cascades to its rows in `task_categories`. SQLite foreign-key enforcement is enabled on every connection.
+- **Task** — schedule fields, recurrence series + occurrence rows, optional project/goal, reminders
+- **Project** — status, priority, dates; progress is computed from tasks
+- **Goal** — status (`not_started` / `in_progress` / `completed` / `archived`), priority, optional project
+- **Reminder** — datetime, enabled flag, optional task/project/goal
+- **Notification** — read state and related entity
+- **AiMessage** — conversation history for the signed-in user only
 
-## Tables
-
-| Table | Purpose | Important constraints |
-| --- | --- | --- |
-| `users` | Account identity and password hash | Unique case-insensitive email |
-| `tasks` | Todo records owned by a user | Status and priority checks; indexed by owner/status and due date |
-| `categories` | User-owned labels | Unique category name per user |
-| `task_categories` | Task/category many-to-many junction | Composite primary key and cascading foreign keys |
-
-All tables use integer primary keys. `created_at` and mutable-record `updated_at` fields default to UTC SQLite `datetime('now')`. Dates such as `due_at` are stored as ISO-8601 text so they remain portable and sortable.
+Deleting a user cascades to their records. Completing a recurring **series** completes **today’s occurrence only**.
 
 ## Setup
 
-From `backend-ordina`:
-
 ```bash
+cd backend-ordina
 npm install
+npm run db:generate
 npm run db:setup
 ```
 
-The Prisma schema is in `prisma/schema.prisma`; migrations are in `prisma/migrations`. Apply committed migrations with `npm run db:setup` and generate the client with `npm run db:generate`. The legacy `schema.sql` and `npm run db:test` smoke test remain available for the existing low-level database helper.
+Never drop production data. Add additive migrations only.
 
 ## Verification
 
@@ -41,5 +32,3 @@ The Prisma schema is in `prisma/schema.prisma`; migrations are in `prisma/migrat
 npm test
 npm run db:test:prisma
 ```
-
-The tests exercise create/read/update/delete behavior for users, categories, and tasks, verify the many-to-many relationship, check foreign-key rejection, and confirm user deletion cascades through related records. For a fresh migration during development, use `npx prisma migrate dev --name <name>`.

@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
     "db:setup": "node node_modules/prisma/build/index.js migrate deploy",
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:test": "node scripts/test-db.js",
@@ -16,6 +18,7 @@
   "type": "commonjs",
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
     "@prisma/adapter-libsql": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "argon2": "^0.45.1",
@@ -25,8 +28,10 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "helmet": "^8.3.0",
+    "jose": "^6.2.12",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
+    "nodemailer": "^10.0.3",
     "pg": "^8.23.0",
     "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.3.0",
@@ -35,5 +40,8 @@
   },
   "devDependencies": {
     "prisma": "^7.10.0"
+  },
+  "overrides": {
+    "better-sqlite3": "$better-sqlite3"
   }
 }

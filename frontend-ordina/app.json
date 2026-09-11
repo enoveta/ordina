@@ -1,39 +1,74 @@
 {
   "expo": {
-    "name": "frontend-ordina",
-    "slug": "frontend-ordina",
+    "name": "ORDINA",
+    "slug": "ordina",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "frontendordina",
-    "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/ordina-logo.png",
+    "scheme": "ordina",
+    "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/ordina-logo.png",
+      "supportsTablet": true,
+      "usesAppleSignIn": true
     },
     "android": {
+      "package": "com.ordina.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#F8FAFC",
+        "foregroundImage": "./assets/images/ordina-logo.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/ordina-logo.png"
     },
-    "plugins": [
+      "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#F8FAFC",
+          "image": "./assets/images/ordina-logo.png",
+          "imageWidth": 200
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#5C4DF2"
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "ORDINA uses the microphone so you can speak tasks instead of typing them."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "ORDINA matches a name you mention, such as Call John. Your full address book is not uploaded."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "ORDINA can read busy times and add events after you confirm a plan."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ORDINA uses location only for arrival reminders you choose to create."
+        }
+      ],
+      "expo-image-picker",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

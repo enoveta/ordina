@@ -1,46 +1,79 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * ORDINA colors from the approved screens (dark as designed).
+ * Light mode inverts surfaces; purple accents stay the same.
  */
-
-import '@/global.css';
 
 import { Platform } from 'react-native';
 
+export const Brand = {
+  primary: '#5C4DF2',
+  secondary: '#7C3AED',
+  navy: '#0F172A',
+  white: '#FFFFFF',
+  softBackground: '#F8FAFC',
+  lightBorder: '#E2E8F0',
+  success: '#22C55E',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  tagline: 'PUT ORDER IN YOUR DAY',
+} as const;
+
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#0F172A',
+    textSecondary: '#64748B',
+    background: '#F8FAFC',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#EEF2FF',
+    card: '#FFFFFF',
+    input: '#F1F5F9',
+    border: '#E2E8F0',
+    primary: '#5C4DF2',
+    secondary: '#7C3AED',
+    aiAccent: '#7C3AED',
+    onPrimary: '#FFFFFF',
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    tabBar: '#FFFFFF',
+    overlay: '#000000',
   },
   dark: {
-    text: '#ffffff',
+    text: '#FFFFFF',
+    textSecondary: '#A1A1AA',
     background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    backgroundElement: '#1C1C1E',
+    backgroundSelected: '#2C2C2E',
+    card: '#1C1C1E',
+    input: '#1C1C1E',
+    border: '#2C2C2E',
+    primary: '#5C4DF2',
+    secondary: '#7C3AED',
+    aiAccent: '#7C3AED',
+    onPrimary: '#FFFFFF',
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    tabBar: '#000000',
+    overlay: '#000000',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export type ColorSchemeName = 'light' | 'dark';
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
+    sans: 'Poppins_400Regular',
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
+    rounded: 'Poppins_500Medium',
     mono: 'ui-monospace',
   },
   default: {
-    sans: 'normal',
+    sans: 'Poppins_400Regular',
     serif: 'serif',
-    rounded: 'normal',
+    rounded: 'Poppins_500Medium',
     mono: 'monospace',
   },
   web: {
@@ -61,5 +94,14 @@ export const Spacing = {
   six: 64,
 } as const;
 
+export const Radii = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 999,
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+export const THEME_PREFERENCE_KEY = 'ordina.themePreference.v3';
