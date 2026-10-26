@@ -363,9 +363,9 @@ export type PlanInput = {
   conversation?: ChatTurn[];
 };
 
-export async function createPlan(input: PlanInput, { generate, newId }: { generate: GenerateJson; newId: () => string }) {
+export async function createPlan(input: PlanInput, { generate, newId, now }: { generate: GenerateJson; newId: () => string; now?: Date }) {
   const { message, answers, keepTasks, timezone, clientToday, clientTime, existingTasks, profile, conversation } = input;
-  const clock = resolveNow({ timezone, clientToday, clientTime });
+  const clock = resolveNow({ timezone, clientToday, clientTime, now });
   const busy = busyBlocks(existingTasks, clock.today);
   const kept = sanitizeKeepTasks(keepTasks, clock.today);
   const raw = await generate(

@@ -49,7 +49,7 @@ export function CrashScreen({ error, onRetry }: { error: Error; onRetry?: () => 
   const details = (error.stack || '').split('\n').slice(0, 8).join('\n');
   return (
     <View style={{ flex: 1, backgroundColor: '#F8FAFC', paddingTop: 64, paddingHorizontal: 20, paddingBottom: 24 }}>
-      <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>ORDINA AI hit a problem</Text>
+      <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>ORDINA hit a problem</Text>
       <Text style={{ marginTop: 8, fontSize: 15, color: '#475569' }}>
         Your tasks on this phone are safe. Please take a screenshot of this screen and send it to the developer.
       </Text>

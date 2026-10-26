@@ -164,7 +164,7 @@ test('backup import: valid files are accepted, anything else is refused before w
   assert.deepEqual(parseBackup(JSON.stringify({ ...backup, version: 99 })), { ok: false, error: 'newerVersion' });
   assert.deepEqual(parseBackup(JSON.stringify({ ...backup, tasks: [{ id: 't2' }] })), { ok: false, error: 'invalid' });
   assert.deepEqual(parseBackup(JSON.stringify({ ...backup, messages: [{ ...backup.messages[0], conversation_id: 'missing' }] })), { ok: false, error: 'invalid' });
-  assert.match(backupFileName(now), /^ordina-backup-2026-10-21\.json$/);
+  assert.match(backupFileName(now), /^ORDINA-backup-2026-10-21\.json$/);
 });
 
 test('backup merge: newest version wins, no duplicates', () => {

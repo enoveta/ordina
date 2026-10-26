@@ -54,6 +54,7 @@ test('createPlan uses the phone clock, avoids busy tasks and keeps the key out o
     existingTasks: [{ title: 'Team meeting', dueDate: '2026-10-23', startTime: '10:00', duration: '1h 0m' }],
   }, {
     newId: () => 'plan-1',
+    now: new Date('2026-10-23T07:00:00Z'),
     generate: async (contents) => {
       prompt = contents[0].parts[0].text;
       return {

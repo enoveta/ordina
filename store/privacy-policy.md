@@ -1,17 +1,17 @@
-# ORDINA AI Privacy Policy (DRAFT)
+# ORDINA Privacy Policy (DRAFT)
 
 > **Draft. Fill in every `TODO` and review it before publishing.** It describes what the code
-> actually does in the ORDINA AI Android app (Tasks + ORDINA AI build). Have it checked if you
+> actually does in the ORDINA Android app (Tasks + ORDINA AI build). Have it checked if you
 > need legal certainty. The policy must be hosted at a public URL (see "Hosting" at the end).
 
 **Effective date:** TODO (date you publish it)
-**App:** ORDINA AI (Android, package `com.ordina.app`)
+**App:** ORDINA (Android, package `com.ordina.app`)
 **Developer:** TODO (your name or business name)
 **Contact:** TODO (email address for privacy questions and deletion requests)
 
-## 1. What ORDINA AI does
+## 1. What ORDINA does
 
-ORDINA AI helps you plan your day. You create tasks yourself, or describe your day in plain language and ORDINA AI proposes a plan that you review, edit and confirm before anything is saved.
+ORDINA helps you plan your day. You create tasks yourself, or describe your day in plain language and ORDINA AI proposes a plan that you review, edit and confirm before anything is saved.
 
 ## 2. Data we collect and store
 
@@ -47,7 +47,7 @@ ORDINA AI uses the **Google Gemini API** to understand your requests. When you u
 
 | Provider | Role | Location |
 | --- | --- | --- |
-| Render | Hosts the ORDINA AI server | USA (Ohio) |
+| Render | Hosts the ORDINA server | USA (Ohio) |
 | Neon | Hosts the PostgreSQL database | USA (Ohio, AWS us-east-2) |
 | Google (Gemini API) | AI processing as described in section 3 | Google infrastructure |
 
@@ -73,7 +73,7 @@ Deletion is permanent and takes effect immediately on our servers.
 
 ## 8. Children
 
-ORDINA AI is not directed at children under 13 (TODO: adjust to your target audience and local law), and we do not knowingly collect their data.
+ORDINA is not directed at children under 13 (TODO: adjust to your target audience and local law), and we do not knowingly collect their data.
 
 ## 9. Changes
 

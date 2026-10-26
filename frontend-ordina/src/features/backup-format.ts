@@ -87,5 +87,5 @@ export function mergeRows(existing: RowRecord[], incoming: RowRecord[], key = 'i
 
 export function backupFileName(now = new Date()) {
   const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return `ordina-backup-${day}.json`;
+  return `ORDINA-backup-${day}.json`;
 }
